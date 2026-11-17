@@ -41,14 +41,13 @@
   <div id="ui">
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
-    <div>[1] 操縦席 ⇄ 後部座席</div>
-    <div>[￥] フリカメ（マウス操作有効）</div>
+    <div>[1] 操縦席 ⇄ 後部座席 (固定視点)</div>
+    <div>[￥] フリカメ (首振り視点 / ドラッグ操作)</div>
   </div>
 
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -61,9 +60,6 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(defaultCamera, renderer.domElement);
-    controls.enableDamping = true;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
@@ -79,6 +75,13 @@
 
     const camNameEl = document.getElementById('camName');
 
+    // フリカメ用マウス視点操作（首振り）の変数
+    let isMouseDown = false;
+    let mouseX = 0;
+    let mouseY = 0;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    let isFreeCamActive = false;
+
     function switchCamera(name) {
       const target = cameras[name];
       if (!target) return;
@@ -89,11 +92,11 @@
       camNameEl.textContent = name;
 
       if (name === 'フリカメ') {
-        controls.object = target;
-        controls.enabled = true;
-        controls.update();
+        isFreeCamActive = true;
+        // 現在のカメラの向きから初期角度（euler）を設定
+        euler.setFromQuaternion(target.quaternion, 'YXZ');
       } else {
-        controls.enabled = false;
+        isFreeCamActive = false;
       }
     }
 
@@ -133,8 +136,7 @@
           switchCamera('フリカメ');
         } else {
           activeCamera = defaultCamera;
-          controls.object = defaultCamera;
-          controls.enabled = true;
+          isFreeCamActive = false;
           camNameEl.textContent = 'デフォルト';
         }
 
@@ -145,6 +147,37 @@
     document.getElementById('fileInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) loadGLB(file);
+    });
+
+    // マウスドラッグによる首振り操作
+    window.addEventListener('mousedown', (e) => {
+      if (!isFreeCamActive) return;
+      isMouseDown = true;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown || !isFreeCamActive) return;
+
+      const deltaX = e.clientX - mouseX;
+      const deltaY = e.clientY - mouseY;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+
+      const sensitivity = 0.003;
+      euler.y -= deltaX * sensitivity;
+      euler.x -= deltaY * sensitivity;
+
+      // 見上げ・見下ろしの限界角を制限（±85度程度）
+      const maxPolarAngle = Math.PI / 2 - 0.01;
+      euler.x = Math.max(-maxPolarAngle, Math.min(maxPolarAngle, euler.x));
+
+      activeCamera.quaternion.setFromEuler(euler);
+    });
+
+    window.addEventListener('mouseup', () => {
+      isMouseDown = false;
     });
 
     window.addEventListener('keydown', (e) => {
@@ -172,9 +205,6 @@
 
     function animate() {
       requestAnimationFrame(animate);
-      if (controls.enabled) {
-        controls.update();
-      }
       renderer.render(scene, activeCamera);
     }
     animate();
