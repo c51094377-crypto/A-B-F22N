@@ -94,14 +94,9 @@
       activeCamera = target;
       camNameEl.textContent = name;
 
-      if (name === 'フリカメ') {
-        controls.enabled = false;
-        isFreeLook = true;
-        freeLookEuler.setFromQuaternion(target.quaternion, 'YXZ');
-      } else {
-        controls.enabled = false;
-        isFreeLook = false;
-      }
+      controls.enabled = false;
+      isFreeLook = true;
+      freeLookEuler.setFromQuaternion(target.quaternion, 'YXZ');
     }
 
     function loadGLB(file) {
