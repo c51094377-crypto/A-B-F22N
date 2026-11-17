@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLB Camera Switcher</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+      color: #fff;
+      font-family: sans-serif;
+    }
+    #ui {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    input[type="file"] {
+      margin-bottom: 8px;
+      display: block;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="ui">
+    <input type="file" id="fileInput" accept=".glb" />
+    <div>現在のカメラ: <strong id="camName">なし</strong></div>
+    <div>[1] 操縦席 ⇄ 後部座席</div>
+    <div>[￥] フリカメ（マウス操作有効）</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const defaultCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    defaultCamera.position.set(0, 2, 5);
+    let activeCamera = defaultCamera;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(defaultCamera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    const loader = new GLTFLoader();
+    let loadedModel = null;
+    const cameras = {};
+    let seatIndex = 0;
+    const seatNames = ['操縦席', '後部座席'];
+
+    const camNameEl = document.getElementById('camName');
+
+    function switchCamera(name) {
+      const target = cameras[name];
+      if (!target) return;
+
+      target.aspect = window.innerWidth / window.innerHeight;
+      target.updateProjectionMatrix();
+      activeCamera = target;
+      camNameEl.textContent = name;
+
+      if (name === 'フリカメ') {
+        controls.object = target;
+        controls.enabled = true;
+        controls.update();
+      } else {
+        controls.enabled = false;
+      }
+    }
+
+    function loadGLB(file) {
+      const url = URL.createObjectURL(file);
+      loader.load(url, (gltf) => {
+        if (loadedModel) {
+          scene.remove(loadedModel);
+        }
+        for (const key in cameras) {
+          delete cameras[key];
+        }
+
+        loadedModel = gltf.scene;
+        scene.add(loadedModel);
+
+        loadedModel.traverse((obj) => {
+          if (obj.isCamera && obj.name) {
+            cameras[obj.name] = obj;
+          }
+        });
+
+        if (gltf.cameras) {
+          gltf.cameras.forEach((cam) => {
+            if (cam.name && !cameras[cam.name]) {
+              cameras[cam.name] = cam;
+            }
+          });
+        }
+
+        seatIndex = 0;
+        if (cameras['操縦席']) {
+          switchCamera('操縦席');
+        } else if (cameras['後部座席']) {
+          switchCamera('後部座席');
+        } else if (cameras['フリカメ']) {
+          switchCamera('フリカメ');
+        } else {
+          activeCamera = defaultCamera;
+          controls.object = defaultCamera;
+          controls.enabled = true;
+          camNameEl.textContent = 'デフォルト';
+        }
+
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) loadGLB(file);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '1' || e.code === 'Digit1') {
+        const targetName = seatNames[seatIndex];
+        if (cameras[targetName]) {
+          switchCamera(targetName);
+          seatIndex = (seatIndex + 1) % seatNames.length;
+        } else {
+          const altName = seatNames[(seatIndex + 1) % seatNames.length];
+          if (cameras[altName]) {
+            switchCamera(altName);
+          }
+        }
+      } else if (e.key === '¥' || e.key === '\\' || e.code === 'IntlYen' || e.code === 'Backslash') {
+        switchCamera('フリカメ');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      activeCamera.aspect = window.innerWidth / window.innerHeight;
+      activeCamera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (controls.enabled) {
+        controls.update();
+      }
+      renderer.render(scene, activeCamera);
+    }
+    animate();
+  </script>
+</body>
+</html>
