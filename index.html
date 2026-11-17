@@ -41,13 +41,14 @@
   <div id="ui">
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
-    <div>[1] 操縦席 ⇄ 後部座席 (固定視点)</div>
-    <div>[￥] フリカメ (首振り視点 / ドラッグ操作)</div>
+    <div>[1] 操縦席 ⇄ 後部座席</div>
+    <div>[￥] フリカメ（マウス操作有効）</div>
   </div>
 
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -61,6 +62,9 @@
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
+    const controls = new OrbitControls(defaultCamera, renderer.domElement);
+    controls.enableDamping = true;
+
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2);
@@ -73,14 +77,13 @@
     let seatIndex = 0;
     const seatNames = ['操縦席', '後部座席'];
 
-    const camNameEl = document.getElementById('camName');
+    let isFreeLook = false;
+    let isDragging = false;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    const freeLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
-    // フリカメ用マウス視点操作（首振り）の変数
-    let isMouseDown = false;
-    let mouseX = 0;
-    let mouseY = 0;
-    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-    let isFreeCamActive = false;
+    const camNameEl = document.getElementById('camName');
 
     function switchCamera(name) {
       const target = cameras[name];
@@ -92,11 +95,12 @@
       camNameEl.textContent = name;
 
       if (name === 'フリカメ') {
-        isFreeCamActive = true;
-        // 現在のカメラの向きから初期角度（euler）を設定
-        euler.setFromQuaternion(target.quaternion, 'YXZ');
+        controls.enabled = false;
+        isFreeLook = true;
+        freeLookEuler.setFromQuaternion(target.quaternion, 'YXZ');
       } else {
-        isFreeCamActive = false;
+        controls.enabled = false;
+        isFreeLook = false;
       }
     }
 
@@ -136,7 +140,9 @@
           switchCamera('フリカメ');
         } else {
           activeCamera = defaultCamera;
-          isFreeCamActive = false;
+          controls.object = defaultCamera;
+          controls.enabled = true;
+          isFreeLook = false;
           camNameEl.textContent = 'デフォルト';
         }
 
@@ -149,35 +155,29 @@
       if (file) loadGLB(file);
     });
 
-    // マウスドラッグによる首振り操作
-    window.addEventListener('mousedown', (e) => {
-      if (!isFreeCamActive) return;
-      isMouseDown = true;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      if (!isFreeLook) return;
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
     });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!isMouseDown || !isFreeCamActive) return;
-
-      const deltaX = e.clientX - mouseX;
-      const deltaY = e.clientY - mouseY;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
+    window.addEventListener('pointermove', (e) => {
+      if (!isFreeLook || !isDragging) return;
+      const dx = e.clientX - prevMouseX;
+      const dy = e.clientY - prevMouseY;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
 
       const sensitivity = 0.003;
-      euler.y -= deltaX * sensitivity;
-      euler.x -= deltaY * sensitivity;
-
-      // 見上げ・見下ろしの限界角を制限（±85度程度）
-      const maxPolarAngle = Math.PI / 2 - 0.01;
-      euler.x = Math.max(-maxPolarAngle, Math.min(maxPolarAngle, euler.x));
-
-      activeCamera.quaternion.setFromEuler(euler);
+      freeLookEuler.y -= dx * sensitivity;
+      freeLookEuler.x -= dy * sensitivity;
+      freeLookEuler.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, freeLookEuler.x));
+      activeCamera.quaternion.setFromEuler(freeLookEuler);
     });
 
-    window.addEventListener('mouseup', () => {
-      isMouseDown = false;
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
     });
 
     window.addEventListener('keydown', (e) => {
@@ -205,6 +205,9 @@
 
     function animate() {
       requestAnimationFrame(animate);
+      if (controls.enabled) {
+        controls.update();
+      }
       renderer.render(scene, activeCamera);
     }
     animate();
