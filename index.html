@@ -43,6 +43,9 @@
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 操縦席 ⇄ 後部座席</div>
     <div>[￥] フリカメ（マウス操作有効）</div>
+    <div>[C] キャノピー開閉</div>
+    <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
+    <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
 
   <script type="module">
@@ -85,6 +88,78 @@
 
     const camNameEl = document.getElementById('camName');
 
+    const nodes = {};
+    const initialRotations = {};
+    const animations = [];
+    const pressedKeys = new Set();
+
+    const state = {
+      canopyClosed: false,
+      leftSubWB: false,
+      rightSubWB: false,
+      leftMainWB: false,
+      rightMainWB: false
+    };
+
+    function getNode(name) {
+      return nodes[name] || null;
+    }
+
+    function cancelAnimationsFor(obj) {
+      for (let i = animations.length - 1; i >= 0; i--) {
+        if (animations[i].obj === obj) {
+          animations.splice(i, 1);
+        }
+      }
+    }
+
+    function animateRotation(obj, axis, targetVal, duration, onComplete = null) {
+      if (!obj) return;
+      cancelAnimationsFor(obj);
+      animations.push({
+        obj,
+        axis,
+        startVal: obj.rotation[axis],
+        targetVal,
+        duration,
+        elapsed: 0,
+        onComplete
+      });
+    }
+
+    function toggleCanopy() {
+      const obj = getNode('キャノピー');
+      if (!obj) return;
+      const initX = initialRotations['キャノピー'].x;
+      state.canopyClosed = !state.canopyClosed;
+
+      if (state.canopyClosed) {
+        const deg10 = THREE.MathUtils.degToRad(10);
+        const totalDiff = Math.abs(0 - initX);
+        if (totalDiff > deg10) {
+          const midX = initX > 0 ? deg10 : -deg10;
+          const t1 = 5 * ((totalDiff - deg10) / totalDiff);
+          animateRotation(obj, 'x', midX, t1, () => {
+            animateRotation(obj, 'x', 0, 3);
+          });
+        } else {
+          animateRotation(obj, 'x', 0, 3);
+        }
+      } else {
+        animateRotation(obj, 'x', initX, 5);
+      }
+    }
+
+    function toggleDoorGroup(names, stateKey) {
+      state[stateKey] = !state[stateKey];
+      names.forEach((name) => {
+        const obj = getNode(name);
+        if (!obj) return;
+        const targetZ = state[stateKey] ? 0 : initialRotations[name].z;
+        animateRotation(obj, 'z', targetZ, 2);
+      });
+    }
+
     function switchCamera(name) {
       const target = cameras[name];
       if (!target) return;
@@ -108,11 +183,27 @@
         for (const key in cameras) {
           delete cameras[key];
         }
+        for (const key in nodes) {
+          delete nodes[key];
+        }
+        for (const key in initialRotations) {
+          delete initialRotations[key];
+        }
+        animations.length = 0;
+        state.canopyClosed = false;
+        state.leftSubWB = false;
+        state.rightSubWB = false;
+        state.leftMainWB = false;
+        state.rightMainWB = false;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
 
         loadedModel.traverse((obj) => {
+          if (obj.name) {
+            nodes[obj.name] = obj;
+            initialRotations[obj.name] = obj.rotation.clone();
+          }
           if (obj.isCamera && obj.name) {
             cameras[obj.name] = obj;
           }
@@ -176,7 +267,31 @@
     });
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === '1' || e.code === 'Digit1') {
+      pressedKeys.add(e.code);
+      if (e.repeat) return;
+
+      const isVHeld = pressedKeys.has('KeyV');
+
+      if (isVHeld && (e.key === '2' || e.code === 'Digit2')) {
+        toggleDoorGroup(['左-副WB扉A', '左-副WB扉B'], 'leftSubWB');
+        return;
+      }
+      if (isVHeld && (e.key === '3' || e.code === 'Digit3')) {
+        toggleDoorGroup(['右-副WB扉A', '右-副WB扉B'], 'rightSubWB');
+        return;
+      }
+      if (isVHeld && (e.key === '4' || e.code === 'Digit4')) {
+        toggleDoorGroup(['左-主WB扉A'], 'leftMainWB');
+        return;
+      }
+      if (isVHeld && (e.key === '5' || e.code === 'Digit5')) {
+        toggleDoorGroup(['右-主WB扉A'], 'rightMainWB');
+        return;
+      }
+
+      if (e.code === 'KeyC') {
+        toggleCanopy();
+      } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
           switchCamera(targetName);
@@ -192,14 +307,40 @@
       }
     });
 
+    window.addEventListener('keyup', (e) => {
+      pressedKeys.delete(e.code);
+    });
+
+    window.addEventListener('blur', () => {
+      pressedKeys.clear();
+    });
+
     window.addEventListener('resize', () => {
       activeCamera.aspect = window.innerWidth / window.innerHeight;
       activeCamera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    const clock = new THREE.Clock();
+
     function animate() {
       requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      for (let i = animations.length - 1; i >= 0; i--) {
+        const anim = animations[i];
+        anim.elapsed += dt;
+        const progress = anim.duration > 0 ? Math.min(anim.elapsed / anim.duration, 1) : 1;
+        anim.obj.rotation[anim.axis] = anim.startVal + (anim.targetVal - anim.startVal) * progress;
+
+        if (progress >= 1) {
+          animations.splice(i, 1);
+          if (anim.onComplete) {
+            anim.onComplete();
+          }
+        }
+      }
+
       if (controls.enabled) {
         controls.update();
       }
