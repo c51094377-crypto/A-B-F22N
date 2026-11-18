@@ -46,6 +46,7 @@
     <div>[C] キャノピー開閉</div>
     <div>[G] 脚・脚扉の収納 / 展開</div>
     <div>[H] 主翼可変（3段階）</div>
+    <div>[WASD] 水平尾翼・操縦桿操作</div>
     <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
     <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
@@ -148,7 +149,9 @@
       rightMainWB: true,
       gearRetracted: false,
       wingStage: 0,
-      wingDir: 1
+      wingDir: 1,
+      pitchInput: 0,
+      rollInput: 0
     };
 
     function getNode(name) {
@@ -376,6 +379,8 @@
         state.gearRetracted = false;
         state.wingStage = 0;
         state.wingDir = 1;
+        state.pitchInput = 0;
+        state.rollInput = 0;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -529,9 +534,54 @@
 
     const clock = new THREE.Clock();
 
+    function updateFlightControls(dt) {
+      let targetPitch = 0;
+      if (pressedKeys.has('KeyW')) targetPitch += 1;
+      if (pressedKeys.has('KeyS')) targetPitch -= 1;
+
+      let targetRoll = 0;
+      if (pressedKeys.has('KeyD')) targetRoll += 1;
+      if (pressedKeys.has('KeyA')) targetRoll -= 1;
+
+      const responseSpeed = 4.0;
+      const alpha = 1 - Math.exp(-responseSpeed * dt);
+      state.pitchInput += (targetPitch - state.pitchInput) * alpha;
+      state.rollInput += (targetRoll - state.rollInput) * alpha;
+
+      const tailMaxRad = THREE.MathUtils.degToRad(33.73);
+      const stickMaxXRad = THREE.MathUtils.degToRad(31.25);
+      const stickMaxZRad = THREE.MathUtils.degToRad(24.25);
+
+      const leftTail = getNode('左-水平尾翼');
+      if (leftTail) {
+        const initX = initialRotations['左-水平尾翼'] ? initialRotations['左-水平尾翼'].x : 0;
+        const deltaX = THREE.MathUtils.clamp((-state.pitchInput + state.rollInput) * tailMaxRad, -tailMaxRad, tailMaxRad);
+        leftTail.rotation.x = initX + deltaX;
+      }
+
+      const rightTail = getNode('右-水平尾翼');
+      if (rightTail) {
+        const initX = initialRotations['右-水平尾翼'] ? initialRotations['右-水平尾翼'].x : 0;
+        const deltaX = THREE.MathUtils.clamp((-state.pitchInput - state.rollInput) * tailMaxRad, -tailMaxRad, tailMaxRad);
+        rightTail.rotation.x = initX + deltaX;
+      }
+
+      ['前-操縦桿', '後-操縦桿'].forEach((name) => {
+        const stick = getNode(name);
+        if (!stick) return;
+        const init = initialRotations[name] || { x: 0, z: 0 };
+        const deltaX = THREE.MathUtils.clamp(state.pitchInput * stickMaxXRad, -stickMaxXRad, stickMaxXRad);
+        const deltaZ = THREE.MathUtils.clamp(state.rollInput * stickMaxZRad, -stickMaxZRad, stickMaxZRad);
+        stick.rotation.x = init.x + deltaX;
+        stick.rotation.z = init.z + deltaZ;
+      });
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       const dt = clock.getDelta();
+
+      updateFlightControls(dt);
 
       for (let i = animations.length - 1; i >= 0; i--) {
         const anim = animations[i];
