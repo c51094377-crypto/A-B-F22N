@@ -75,15 +75,50 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.85;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const skyEnvScene = new THREE.Scene();
+    const envSky = new Sky();
+    envSky.scale.setScalar(10000);
+    envSky.material.uniforms['turbidity'].value = 4;
+    envSky.material.uniforms['rayleigh'].value = 2;
+    envSky.material.uniforms['mieCoefficient'].value = 0.005;
+    envSky.material.uniforms['mieDirectionalG'].value = 0.8;
+    envSky.material.uniforms['sunPosition'].value.copy(sun);
+    skyEnvScene.add(envSky);
+    const envRT = pmremGenerator.fromScene(skyEnvScene, 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 1.0;
+
+    sky.material.uniforms['turbidity'].value = 4;
+    sky.material.uniforms['rayleigh'].value = 2;
+    sky.material.uniforms['mieCoefficient'].value = 0.005;
+    sky.material.uniforms['mieDirectionalG'].value = 0.8;
 
     const controls = new OrbitControls(defaultCamera, renderer.domElement);
     controls.enableDamping = true;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-    scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.set(5, 10, 7);
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x3b352e, 0.65);
+    hemiLight.position.set(0, 50, 0);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff1dc, 2.2);
+    dirLight.position.copy(sun).multiplyScalar(100);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 300;
+    dirLight.shadow.camera.left = -30;
+    dirLight.shadow.camera.right = 30;
+    dirLight.shadow.camera.top = 30;
+    dirLight.shadow.camera.bottom = -30;
+    dirLight.shadow.bias = -0.0005;
     scene.add(dirLight);
 
     const loader = new GLTFLoader();
@@ -346,6 +381,14 @@
         scene.add(loadedModel);
 
         loadedModel.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            if (obj.material) {
+              obj.material.envMapIntensity = 1.0;
+              obj.material.needsUpdate = true;
+            }
+          }
           if (obj.name) {
             nodes[obj.name] = obj;
             initialRotations[obj.name] = obj.rotation.clone();
