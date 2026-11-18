@@ -46,7 +46,6 @@
     <div>[C] キャノピー開閉</div>
     <div>[G] 脚・脚扉の収納 / 展開</div>
     <div>[H] 主翼可変（3段階）</div>
-    <div>[Y] ステップ展開 / 収納</div>
     <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
     <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
@@ -55,9 +54,35 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Sky } from 'three/addons/objects/Sky.js';
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
+
+    const sky = new Sky();
+    sky.scale.setScalar(450000);
+    scene.add(sky);
+
+    const sun = new THREE.Vector3();
+    const skyController = {
+      turbidity: 10,
+      rayleigh: 3,
+      mieCoefficient: 0.005,
+      mieDirectionalG: 0.7,
+      elevation: 25,
+      azimuth: 180,
+      exposure: renderer?.toneMappingExposure ?? 1
+    };
+
+    const uniforms = sky.material.uniforms;
+    uniforms['turbidity'].value = skyController.turbidity;
+    uniforms['rayleigh'].value = skyController.rayleigh;
+    uniforms['mieCoefficient'].value = skyController.mieCoefficient;
+    uniforms['mieDirectionalG'].value = skyController.mieDirectionalG;
+
+    const phi = THREE.MathUtils.degToRad(90 - skyController.elevation);
+    const theta = THREE.MathUtils.degToRad(skyController.azimuth);
+    sun.setFromSphericalCoords(1, phi, theta);
+    uniforms['sunPosition'].value.copy(sun);
 
     const defaultCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     defaultCamera.position.set(0, 2, 5);
@@ -66,6 +91,8 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.5;
     document.body.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(defaultCamera, renderer.domElement);
@@ -74,7 +101,7 @@
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.set(5, 10, 7);
+    dirLight.position.copy(sun);
     scene.add(dirLight);
 
     const loader = new GLTFLoader();
@@ -93,7 +120,6 @@
 
     const nodes = {};
     const initialRotations = {};
-    const initialPositions = {};
     const animations = [];
     const pressedKeys = new Set();
 
@@ -105,8 +131,7 @@
       rightMainWB: true,
       gearRetracted: false,
       wingStage: 0,
-      wingDir: 1,
-      stepDeployed: false
+      wingDir: 1
     };
 
     function getNode(name) {
@@ -147,24 +172,6 @@
         targetX: targetEuler.x,
         targetY: targetEuler.y,
         targetZ: targetEuler.z,
-        duration,
-        elapsed: 0,
-        onComplete
-      });
-    }
-
-    function animatePositionXYZ(obj, targetPos, duration, onComplete = null) {
-      if (!obj) return;
-      cancelAnimationsFor(obj);
-      animations.push({
-        obj,
-        isPosXYZ: true,
-        startX: obj.position.x,
-        startY: obj.position.y,
-        startZ: obj.position.z,
-        targetX: targetPos.x,
-        targetY: targetPos.y,
-        targetZ: targetPos.z,
         duration,
         elapsed: 0,
         onComplete
@@ -301,112 +308,6 @@
       });
     }
 
-    function toggleStep() {
-      state.stepDeployed = !state.stepDeployed;
-
-      const step04 = getNode('ステップ04');
-      const step03 = getNode('ステップ03');
-      const step01 = getNode('ステップ01');
-      const door01 = getNode('ステップ扉01');
-
-      if (state.stepDeployed) {
-        if (step04) {
-          animatePositionXYZ(step04, { x: step04.position.x, y: step04.position.y + 2.369, z: step04.position.z }, 1, () => {
-            if (step03) {
-              animatePositionXYZ(step03, { x: step03.position.x, y: step03.position.y + 5.62, z: step03.position.z }, 1, () => {
-                if (step01) {
-                  animateRotationXYZ(step01, { x: 0, y: 0, z: 0 }, 1, () => {
-                    if (door01) {
-                      animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-                    }
-                  });
-                } else if (door01) {
-                  animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-                }
-              });
-            } else if (step01) {
-              animateRotationXYZ(step01, { x: 0, y: 0, z: 0 }, 1, () => {
-                if (door01) {
-                  animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-                }
-              });
-            } else if (door01) {
-              animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-            }
-          });
-        } else if (step03) {
-          animatePositionXYZ(step03, { x: step03.position.x, y: step03.position.y + 5.62, z: step03.position.z }, 1, () => {
-            if (step01) {
-              animateRotationXYZ(step01, { x: 0, y: 0, z: 0 }, 1, () => {
-                if (door01) {
-                  animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-                }
-              });
-            } else if (door01) {
-              animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-            }
-          });
-        } else if (step01) {
-          animateRotationXYZ(step01, { x: 0, y: 0, z: 0 }, 1, () => {
-            if (door01) {
-              animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-            }
-          });
-        } else if (door01) {
-          animateRotationXYZ(door01, { x: 0, y: 0, z: 0 }, 2);
-        }
-      } else {
-        if (door01) {
-          const initDoorRot = initialRotations['ステップ扉01'];
-          animateRotationXYZ(door01, { x: initDoorRot.x, y: initDoorRot.y, z: initDoorRot.z }, 2, () => {
-            if (step01) {
-              const initStep1Rot = initialRotations['ステップ01'];
-              animateRotationXYZ(step01, { x: initStep1Rot.x, y: initStep1Rot.y, z: initStep1Rot.z }, 1, () => {
-                if (step03) {
-                  animatePositionXYZ(step03, { x: step03.position.x, y: initialPositions['ステップ03'].y, z: step03.position.z }, 1, () => {
-                    if (step04) {
-                      animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-                    }
-                  });
-                } else if (step04) {
-                  animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-                }
-              });
-            } else if (step03) {
-              animatePositionXYZ(step03, { x: step03.position.x, y: initialPositions['ステップ03'].y, z: step03.position.z }, 1, () => {
-                if (step04) {
-                  animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-                }
-              });
-            } else if (step04) {
-              animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-            }
-          });
-        } else if (step01) {
-          const initStep1Rot = initialRotations['ステップ01'];
-          animateRotationXYZ(step01, { x: initStep1Rot.x, y: initStep1Rot.y, z: initStep1Rot.z }, 1, () => {
-            if (step03) {
-              animatePositionXYZ(step03, { x: step03.position.x, y: initialPositions['ステップ03'].y, z: step03.position.z }, 1, () => {
-                if (step04) {
-                  animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-                }
-              });
-            } else if (step04) {
-              animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-            }
-          });
-        } else if (step03) {
-          animatePositionXYZ(step03, { x: step03.position.x, y: initialPositions['ステップ03'].y, z: step03.position.z }, 1, () => {
-            if (step04) {
-              animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-            }
-          });
-        } else if (step04) {
-          animatePositionXYZ(step04, { x: step04.position.x, y: initialPositions['ステップ04'].y, z: step04.position.z }, 1);
-        }
-      }
-    }
-
     function toggleDoorGroup(names, stateKey) {
       state[stateKey] = !state[stateKey];
       names.forEach((name) => {
@@ -446,9 +347,6 @@
         for (const key in initialRotations) {
           delete initialRotations[key];
         }
-        for (const key in initialPositions) {
-          delete initialPositions[key];
-        }
         animations.length = 0;
         state.canopyClosed = false;
         state.leftSubWB = true;
@@ -458,7 +356,6 @@
         state.gearRetracted = false;
         state.wingStage = 0;
         state.wingDir = 1;
-        state.stepDeployed = false;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -467,7 +364,6 @@
           if (obj.name) {
             nodes[obj.name] = obj;
             initialRotations[obj.name] = obj.rotation.clone();
-            initialPositions[obj.name] = obj.position.clone();
           }
           if (obj.isCamera && obj.name) {
             cameras[obj.name] = obj;
@@ -567,8 +463,6 @@
         toggleGear();
       } else if (e.code === 'KeyH') {
         stepWings();
-      } else if (e.code === 'KeyY') {
-        toggleStep();
       } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
@@ -614,10 +508,6 @@
           anim.obj.rotation.x = anim.startX + (anim.targetX - anim.startX) * progress;
           anim.obj.rotation.y = anim.startY + (anim.targetY - anim.startY) * progress;
           anim.obj.rotation.z = anim.startZ + (anim.targetZ - anim.startZ) * progress;
-        } else if (anim.isPosXYZ) {
-          anim.obj.position.x = anim.startX + (anim.targetX - anim.startX) * progress;
-          anim.obj.position.y = anim.startY + (anim.targetY - anim.startY) * progress;
-          anim.obj.position.z = anim.startZ + (anim.targetZ - anim.startZ) * progress;
         } else {
           anim.obj.rotation[anim.axis] = anim.startVal + (anim.targetVal - anim.startVal) * progress;
         }
