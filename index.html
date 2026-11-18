@@ -97,10 +97,10 @@
 
     const state = {
       canopyClosed: false,
-      leftSubWB: false,
-      rightSubWB: false,
-      leftMainWB: false,
-      rightMainWB: false,
+      leftSubWB: true,
+      rightSubWB: true,
+      leftMainWB: true,
+      rightMainWB: true,
       gearRetracted: false,
       wingStage: 0,
       wingDir: 1
@@ -321,10 +321,10 @@
         }
         animations.length = 0;
         state.canopyClosed = false;
-        state.leftSubWB = false;
-        state.rightSubWB = false;
-        state.leftMainWB = false;
-        state.rightMainWB = false;
+        state.leftSubWB = true;
+        state.rightSubWB = true;
+        state.leftMainWB = true;
+        state.rightMainWB = true;
         state.gearRetracted = false;
         state.wingStage = 0;
         state.wingDir = 1;
@@ -339,6 +339,13 @@
           }
           if (obj.isCamera && obj.name) {
             cameras[obj.name] = obj;
+          }
+        });
+
+        ['左-副WB扉A', '左-副WB扉B', '右-副WB扉A', '右-副WB扉B', '左-主WB扉A', '右-主WB扉A'].forEach((name) => {
+          const obj = getNode(name);
+          if (obj) {
+            obj.rotation.z = 0;
           }
         });
 
