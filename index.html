@@ -304,6 +304,9 @@
       const target = cameras[name];
       if (!target) return;
 
+      target.near = 0.01;
+      target.updateProjectionMatrix();
+
       target.aspect = window.innerWidth / window.innerHeight;
       target.updateProjectionMatrix();
       activeCamera = target;
@@ -348,24 +351,28 @@
             initialRotations[obj.name] = obj.rotation.clone();
           }
           if (obj.isCamera && obj.name) {
+            obj.near = 0.01;
+            obj.updateProjectionMatrix();
             cameras[obj.name] = obj;
-          }
-        });
-
-        ['左-副WB扉A', '左-副WB扉B', '右-副WB扉A', '右-副WB扉B', '左-主WB扉A', '右-主WB扉A'].forEach((name) => {
-          const obj = getNode(name);
-          if (obj) {
-            obj.rotation.z = 0;
           }
         });
 
         if (gltf.cameras) {
           gltf.cameras.forEach((cam) => {
+            cam.near = 0.01;
+            cam.updateProjectionMatrix();
             if (cam.name && !cameras[cam.name]) {
               cameras[cam.name] = cam;
             }
           });
         }
+
+        ['左-副WB扉A', '左-副WB扉B', '右-副WB扉A', '右-副WB扉B', '左-主WB扉A', 'Right-主WB扉A', '右-主WB扉A'].forEach((name) => {
+          const obj = getNode(name);
+          if (obj) {
+            obj.rotation.z = 0;
+          }
+        });
 
         seatIndex = 0;
         if (cameras['操縦席']) {
@@ -376,6 +383,8 @@
           switchCamera('フリカメ');
         } else {
           activeCamera = defaultCamera;
+          defaultCamera.near = 0.01;
+          defaultCamera.updateProjectionMatrix();
           controls.object = defaultCamera;
           controls.enabled = true;
           isFreeLook = false;
