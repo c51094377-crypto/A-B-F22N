@@ -44,6 +44,7 @@
     <div>[1] 操縦席 ⇄ 後部座席</div>
     <div>[￥] フリカメ（マウス操作有効）</div>
     <div>[C] キャノピー開閉</div>
+    <div>[G] 脚・脚扉の収納 / 展開</div>
     <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
     <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
@@ -98,7 +99,8 @@
       leftSubWB: false,
       rightSubWB: false,
       leftMainWB: false,
-      rightMainWB: false
+      rightMainWB: false,
+      gearRetracted: false
     };
 
     function getNode(name) {
@@ -127,6 +129,24 @@
       });
     }
 
+    function animateRotationXYZ(obj, targetEuler, duration, onComplete = null) {
+      if (!obj) return;
+      cancelAnimationsFor(obj);
+      animations.push({
+        obj,
+        isXYZ: true,
+        startX: obj.rotation.x,
+        startY: obj.rotation.y,
+        startZ: obj.rotation.z,
+        targetX: targetEuler.x,
+        targetY: targetEuler.y,
+        targetZ: targetEuler.z,
+        duration,
+        elapsed: 0,
+        onComplete
+      });
+    }
+
     function toggleCanopy() {
       const obj = getNode('キャノピー');
       if (!obj) return;
@@ -147,6 +167,68 @@
         }
       } else {
         animateRotation(obj, 'x', initX, 5);
+      }
+    }
+
+    function toggleGear() {
+      const gearNames = ['左-後脚収納', '右-後脚収納', '前脚収納A'];
+      const doorNames = ['左-前脚扉A', '右-前脚扉A', '右-後脚扉A', '左-後脚扉A'];
+
+      gearNames.forEach((name) => cancelAnimationsFor(getNode(name)));
+      doorNames.forEach((name) => cancelAnimationsFor(getNode(name)));
+
+      state.gearRetracted = !state.gearRetracted;
+
+      if (state.gearRetracted) {
+        const validGears = gearNames.filter((name) => getNode(name));
+        const animateDoorsToZero = () => {
+          doorNames.forEach((name) => {
+            const obj = getNode(name);
+            if (!obj) return;
+            animateRotationXYZ(obj, { x: 0, y: 0, z: 0 }, 5);
+          });
+        };
+
+        if (validGears.length === 0) {
+          animateDoorsToZero();
+        } else {
+          let completed = 0;
+          validGears.forEach((name) => {
+            const obj = getNode(name);
+            animateRotationXYZ(obj, { x: 0, y: 0, z: 0 }, 5, () => {
+              completed++;
+              if (completed === validGears.length) {
+                animateDoorsToZero();
+              }
+            });
+          });
+        }
+      } else {
+        const validDoors = doorNames.filter((name) => getNode(name));
+        const animateGearsToInit = () => {
+          gearNames.forEach((name) => {
+            const obj = getNode(name);
+            if (!obj) return;
+            const init = initialRotations[name];
+            animateRotationXYZ(obj, { x: init.x, y: init.y, z: init.z }, 5);
+          });
+        };
+
+        if (validDoors.length === 0) {
+          animateGearsToInit();
+        } else {
+          let completed = 0;
+          validDoors.forEach((name) => {
+            const obj = getNode(name);
+            const init = initialRotations[name];
+            animateRotationXYZ(obj, { x: init.x, y: init.y, z: init.z }, 5, () => {
+              completed++;
+              if (completed === validDoors.length) {
+                animateGearsToInit();
+              }
+            });
+          });
+        }
       }
     }
 
@@ -195,6 +277,7 @@
         state.rightSubWB = false;
         state.leftMainWB = false;
         state.rightMainWB = false;
+        state.gearRetracted = false;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -291,6 +374,8 @@
 
       if (e.code === 'KeyC') {
         toggleCanopy();
+      } else if (e.code === 'KeyG') {
+        toggleGear();
       } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
@@ -331,7 +416,14 @@
         const anim = animations[i];
         anim.elapsed += dt;
         const progress = anim.duration > 0 ? Math.min(anim.elapsed / anim.duration, 1) : 1;
-        anim.obj.rotation[anim.axis] = anim.startVal + (anim.targetVal - anim.startVal) * progress;
+
+        if (anim.isXYZ) {
+          anim.obj.rotation.x = anim.startX + (anim.targetX - anim.startX) * progress;
+          anim.obj.rotation.y = anim.startY + (anim.targetY - anim.startY) * progress;
+          anim.obj.rotation.z = anim.startZ + (anim.targetZ - anim.startZ) * progress;
+        } else {
+          anim.obj.rotation[anim.axis] = anim.startVal + (anim.targetVal - anim.startVal) * progress;
+        }
 
         if (progress >= 1) {
           animations.splice(i, 1);
