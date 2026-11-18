@@ -45,6 +45,7 @@
     <div>[￥] フリカメ（マウス操作有効）</div>
     <div>[C] キャノピー開閉</div>
     <div>[G] 脚・脚扉の収納 / 展開</div>
+    <div>[H] 主翼可変（3段階）</div>
     <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
     <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
@@ -100,7 +101,9 @@
       rightSubWB: false,
       leftMainWB: false,
       rightMainWB: false,
-      gearRetracted: false
+      gearRetracted: false,
+      wingStage: 0,
+      wingDir: 1
     };
 
     function getNode(name) {
@@ -232,6 +235,51 @@
       }
     }
 
+    function stepWings() {
+      if (state.wingStage === 0) {
+        state.wingStage = 1;
+        state.wingDir = 1;
+      } else if (state.wingStage === 1) {
+        if (state.wingDir === 1) {
+          state.wingStage = 2;
+        } else {
+          state.wingStage = 0;
+        }
+      } else if (state.wingStage === 2) {
+        state.wingStage = 1;
+        state.wingDir = -1;
+      }
+
+      const deg19 = THREE.MathUtils.degToRad(19);
+      ['右翼', '左翼'].forEach((name) => {
+        const obj = getNode(name);
+        if (!obj) return;
+        const init = initialRotations[name];
+        const absX = Math.abs(init.x);
+        const absY = Math.abs(init.y);
+        const absZ = Math.abs(init.z);
+        let axis = 'y';
+        if (absX >= absY && absX >= absZ) {
+          axis = 'x';
+        } else if (absZ >= absX && absZ >= absY) {
+          axis = 'z';
+        }
+
+        const initVal = init[axis];
+        let targetVal = 0;
+        if (state.wingStage === 0) {
+          targetVal = initVal;
+        } else if (state.wingStage === 1) {
+          const sign = initVal !== 0 ? Math.sign(initVal) : (name === '右翼' ? 1 : -1);
+          targetVal = sign * deg19;
+        } else {
+          targetVal = 0;
+        }
+
+        animateRotation(obj, axis, targetVal, 7);
+      });
+    }
+
     function toggleDoorGroup(names, stateKey) {
       state[stateKey] = !state[stateKey];
       names.forEach((name) => {
@@ -278,6 +326,8 @@
         state.leftMainWB = false;
         state.rightMainWB = false;
         state.gearRetracted = false;
+        state.wingStage = 0;
+        state.wingDir = 1;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -376,6 +426,8 @@
         toggleCanopy();
       } else if (e.code === 'KeyG') {
         toggleGear();
+      } else if (e.code === 'KeyH') {
+        stepWings();
       } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
