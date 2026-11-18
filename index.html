@@ -63,26 +63,10 @@
     scene.add(sky);
 
     const sun = new THREE.Vector3();
-    const skyController = {
-      turbidity: 10,
-      rayleigh: 3,
-      mieCoefficient: 0.005,
-      mieDirectionalG: 0.7,
-      elevation: 25,
-      azimuth: 180,
-      exposure: renderer?.toneMappingExposure ?? 1
-    };
-
-    const uniforms = sky.material.uniforms;
-    uniforms['turbidity'].value = skyController.turbidity;
-    uniforms['rayleigh'].value = skyController.rayleigh;
-    uniforms['mieCoefficient'].value = skyController.mieCoefficient;
-    uniforms['mieDirectionalG'].value = skyController.mieDirectionalG;
-
-    const phi = THREE.MathUtils.degToRad(90 - skyController.elevation);
-    const theta = THREE.MathUtils.degToRad(skyController.azimuth);
+    const phi = THREE.MathUtils.degToRad(88);
+    const theta = THREE.MathUtils.degToRad(180);
     sun.setFromSphericalCoords(1, phi, theta);
-    uniforms['sunPosition'].value.copy(sun);
+    sky.material.uniforms['sunPosition'].value.copy(sun);
 
     const defaultCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     defaultCamera.position.set(0, 2, 5);
@@ -91,8 +75,6 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.5;
     document.body.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(defaultCamera, renderer.domElement);
@@ -101,7 +83,7 @@
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-    dirLight.position.copy(sun);
+    dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
     const loader = new GLTFLoader();
