@@ -42,7 +42,7 @@
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 操縦席 ⇄ 後部座席</div>
-    <div>[0] PerspectiveCamera / [-] PerspectiveCamera_2</div>
+    <div>[0] 射手 ⇄ 車長</div>
     <div>[￥] フリカメ（マウス操作有効）</div>
     <div>[C] キャノピー開閉</div>
     <div>[G] 脚・脚扉の収納 / 展開</div>
@@ -128,6 +128,8 @@
     const cameras = {};
     let seatIndex = 0;
     const seatNames = ['操縦席', '後部座席'];
+    let crewIndex = 0;
+    const crewNames = ['射手', '車長'];
 
     let isFreeLook = false;
     let isDragging = false;
@@ -424,6 +426,7 @@
         });
 
         seatIndex = 0;
+        crewIndex = 0;
         if (cameras['操縦席']) {
           switchCamera('操縦席');
         } else if (cameras['後部座席']) {
@@ -503,10 +506,6 @@
         toggleGear();
       } else if (e.code === 'KeyH') {
         stepWings();
-      } else if (e.key === '0' || e.code === 'Digit0') {
-        switchCamera('PerspectiveCamera');
-      } else if (e.key === '-' || e.code === 'Minus' || e.code === 'NumpadSubtract') {
-        switchCamera('PerspectiveCamera_2');
       } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
@@ -514,6 +513,17 @@
           seatIndex = (seatIndex + 1) % seatNames.length;
         } else {
           const altName = seatNames[(seatIndex + 1) % seatNames.length];
+          if (cameras[altName]) {
+            switchCamera(altName);
+          }
+        }
+      } else if (e.key === '0' || e.code === 'Digit0') {
+        const targetName = crewNames[crewIndex];
+        if (cameras[targetName]) {
+          switchCamera(targetName);
+          crewIndex = (crewIndex + 1) % crewNames.length;
+        } else {
+          const altName = crewNames[(crewIndex + 1) % crewNames.length];
           if (cameras[altName]) {
             switchCamera(altName);
           }
