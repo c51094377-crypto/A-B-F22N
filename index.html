@@ -42,6 +42,12 @@
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 射手 ⇄ 車長</div>
+    <div>[C] キャノピー開閉</div>
+    <div>[G] 脚・脚扉の収納 / 展開</div>
+    <div>[H] 主翼可変（3段階）</div>
+    <div>[WASD] 水平尾翼・操縦桿操作</div>
+    <div>[V+2] 左-副WB扉 / [V+3] 右-副WB扉</div>
+    <div>[V+4] 左-主WB扉 / [V+5] 右-主WB扉</div>
   </div>
 
   <script type="module">
@@ -129,6 +135,208 @@
 
     const camNameEl = document.getElementById('camName');
 
+    const nodes = {};
+    const initialRotations = {};
+    const animations = [];
+    const pressedKeys = new Set();
+
+    const state = {
+      canopyClosed: false,
+      leftSubWB: true,
+      rightSubWB: true,
+      leftMainWB: true,
+      rightMainWB: true,
+      gearRetracted: false,
+      wingStage: 0,
+      wingDir: 1,
+      pitchInput: 0,
+      rollInput: 0
+    };
+
+    function getNode(name) {
+      return nodes[name] || null;
+    }
+
+    function cancelAnimationsFor(obj) {
+      for (let i = animations.length - 1; i >= 0; i--) {
+        if (animations[i].obj === obj) {
+          animations.splice(i, 1);
+        }
+      }
+    }
+
+    function animateRotation(obj, axis, targetVal, duration, onComplete = null) {
+      if (!obj) return;
+      cancelAnimationsFor(obj);
+      animations.push({
+        obj,
+        axis,
+        startVal: obj.rotation[axis],
+        targetVal,
+        duration,
+        elapsed: 0,
+        onComplete
+      });
+    }
+
+    function animateRotationXYZ(obj, targetEuler, duration, onComplete = null) {
+      if (!obj) return;
+      cancelAnimationsFor(obj);
+      animations.push({
+        obj,
+        isXYZ: true,
+        startX: obj.rotation.x,
+        startY: obj.rotation.y,
+        startZ: obj.rotation.z,
+        targetX: targetEuler.x,
+        targetY: targetEuler.y,
+        targetZ: targetEuler.z,
+        duration,
+        elapsed: 0,
+        onComplete
+      });
+    }
+
+    function toggleCanopy() {
+      const obj = getNode('キャノピー');
+      if (!obj) return;
+      const initX = initialRotations['キャノピー'].x;
+      state.canopyClosed = !state.canopyClosed;
+
+      if (state.canopyClosed) {
+        const deg10 = THREE.MathUtils.degToRad(10);
+        const totalDiff = Math.abs(0 - initX);
+        if (totalDiff > deg10) {
+          const midX = initX > 0 ? deg10 : -deg10;
+          const t1 = 5 * ((totalDiff - deg10) / totalDiff);
+          animateRotation(obj, 'x', midX, t1, () => {
+            animateRotation(obj, 'x', 0, 3);
+          });
+        } else {
+          animateRotation(obj, 'x', 0, 3);
+        }
+      } else {
+        animateRotation(obj, 'x', initX, 5);
+      }
+    }
+
+    function toggleGear() {
+      const gearNames = ['左-後脚収納', '右-後脚収納', '前脚収納A'];
+      const doorNames = ['左-前脚扉A', '右-前脚扉A', '右-後脚扉A', '左-後脚扉A'];
+
+      gearNames.forEach((name) => cancelAnimationsFor(getNode(name)));
+      doorNames.forEach((name) => cancelAnimationsFor(getNode(name)));
+
+      state.gearRetracted = !state.gearRetracted;
+
+      if (state.gearRetracted) {
+        const validGears = gearNames.filter((name) => getNode(name));
+        const animateDoorsToZero = () => {
+          doorNames.forEach((name) => {
+            const obj = getNode(name);
+            if (!obj) return;
+            animateRotationXYZ(obj, { x: 0, y: 0, z: 0 }, 5);
+          });
+        };
+
+        if (validGears.length === 0) {
+          animateDoorsToZero();
+        } else {
+          let completed = 0;
+          validGears.forEach((name) => {
+            const obj = getNode(name);
+            animateRotationXYZ(obj, { x: 0, y: 0, z: 0 }, 5, () => {
+              completed++;
+              if (completed === validGears.length) {
+                animateDoorsToZero();
+              }
+            });
+          });
+        }
+      } else {
+        const validDoors = doorNames.filter((name) => getNode(name));
+        const animateGearsToInit = () => {
+          gearNames.forEach((name) => {
+            const obj = getNode(name);
+            if (!obj) return;
+            const init = initialRotations[name];
+            animateRotationXYZ(obj, { x: init.x, y: init.y, z: init.z }, 5);
+          });
+        };
+
+        if (validDoors.length === 0) {
+          animateGearsToInit();
+        } else {
+          let completed = 0;
+          validDoors.forEach((name) => {
+            const obj = getNode(name);
+            const init = initialRotations[name];
+            animateRotationXYZ(obj, { x: init.x, y: init.y, z: init.z }, 5, () => {
+              completed++;
+              if (completed === validDoors.length) {
+                animateGearsToInit();
+              }
+            });
+          });
+        }
+      }
+    }
+
+    function stepWings() {
+      if (state.wingStage === 0) {
+        state.wingStage = 1;
+        state.wingDir = 1;
+      } else if (state.wingStage === 1) {
+        if (state.wingDir === 1) {
+          state.wingStage = 2;
+        } else {
+          state.wingStage = 0;
+        }
+      } else if (state.wingStage === 2) {
+        state.wingStage = 1;
+        state.wingDir = -1;
+      }
+
+      const deg19 = THREE.MathUtils.degToRad(19);
+      ['右翼', '左翼'].forEach((name) => {
+        const obj = getNode(name);
+        if (!obj) return;
+        const init = initialRotations[name];
+        const absX = Math.abs(init.x);
+        const absY = Math.abs(init.y);
+        const absZ = Math.abs(init.z);
+        let axis = 'y';
+        if (absX >= absY && absX >= absZ) {
+          axis = 'x';
+        } else if (absZ >= absX && absZ >= absY) {
+          axis = 'z';
+        }
+
+        const initVal = init[axis];
+        let targetVal = 0;
+        if (state.wingStage === 0) {
+          targetVal = initVal;
+        } else if (state.wingStage === 1) {
+          const sign = initVal !== 0 ? Math.sign(initVal) : (name === '右翼' ? 1 : -1);
+          targetVal = sign * deg19;
+        } else {
+          targetVal = 0;
+        }
+
+        animateRotation(obj, axis, targetVal, 7);
+      });
+    }
+
+    function toggleDoorGroup(names, stateKey) {
+      state[stateKey] = !state[stateKey];
+      names.forEach((name) => {
+        const obj = getNode(name);
+        if (!obj) return;
+        const targetZ = state[stateKey] ? 0 : initialRotations[name].z;
+        animateRotation(obj, 'z', targetZ, 2);
+      });
+    }
+
     function switchCamera(name) {
       const target = cameras[name];
       if (!target) return;
@@ -155,6 +363,23 @@
         for (const key in cameras) {
           delete cameras[key];
         }
+        for (const key in nodes) {
+          delete nodes[key];
+        }
+        for (const key in initialRotations) {
+          delete initialRotations[key];
+        }
+        animations.length = 0;
+        state.canopyClosed = false;
+        state.leftSubWB = true;
+        state.rightSubWB = true;
+        state.leftMainWB = true;
+        state.rightMainWB = true;
+        state.gearRetracted = false;
+        state.wingStage = 0;
+        state.wingDir = 1;
+        state.pitchInput = 0;
+        state.rollInput = 0;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -167,6 +392,10 @@
               obj.material.envMapIntensity = 1.0;
               obj.material.needsUpdate = true;
             }
+          }
+          if (obj.name) {
+            nodes[obj.name] = obj;
+            initialRotations[obj.name] = obj.rotation.clone();
           }
           if (obj.isCamera && obj.name) {
             obj.near = 0.01;
@@ -184,6 +413,13 @@
             }
           });
         }
+
+        ['左-副WB扉A', '左-副WB扉B', '右-副WB扉A', '右-副WB扉B', '左-主WB扉A', 'Right-主WB扉A', '右-主WB扉A'].forEach((name) => {
+          const obj = getNode(name);
+          if (obj) {
+            obj.rotation.z = 0;
+          }
+        });
 
         seatIndex = 0;
         if (cameras['射手']) {
@@ -235,9 +471,35 @@
     });
 
     window.addEventListener('keydown', (e) => {
+      pressedKeys.add(e.code);
       if (e.repeat) return;
 
-      if (e.key === '1' || e.code === 'Digit1') {
+      const isVHeld = pressedKeys.has('KeyV');
+
+      if (isVHeld && (e.key === '2' || e.code === 'Digit2')) {
+        toggleDoorGroup(['左-副WB扉A', '左-副WB扉B'], 'leftSubWB');
+        return;
+      }
+      if (isVHeld && (e.key === '3' || e.code === 'Digit3')) {
+        toggleDoorGroup(['右-副WB扉A', '右-副WB扉B'], 'rightSubWB');
+        return;
+      }
+      if (isVHeld && (e.key === '4' || e.code === 'Digit4')) {
+        toggleDoorGroup(['左-主WB扉A'], 'leftMainWB');
+        return;
+      }
+      if (isVHeld && (e.key === '5' || e.code === 'Digit5')) {
+        toggleDoorGroup(['右-主WB扉A'], 'rightMainWB');
+        return;
+      }
+
+      if (e.code === 'KeyC') {
+        toggleCanopy();
+      } else if (e.code === 'KeyG') {
+        toggleGear();
+      } else if (e.code === 'KeyH') {
+        stepWings();
+      } else if (e.key === '1' || e.code === 'Digit1') {
         const targetName = seatNames[seatIndex];
         if (cameras[targetName]) {
           switchCamera(targetName);
@@ -251,6 +513,14 @@
       }
     });
 
+    window.addEventListener('keyup', (e) => {
+      pressedKeys.delete(e.code);
+    });
+
+    window.addEventListener('blur', () => {
+      pressedKeys.clear();
+    });
+
     window.addEventListener('resize', () => {
       activeCamera.aspect = window.innerWidth / window.innerHeight;
       activeCamera.updateProjectionMatrix();
@@ -259,9 +529,75 @@
 
     const clock = new THREE.Clock();
 
+    function updateFlightControls(dt) {
+      let targetPitch = 0;
+      if (pressedKeys.has('KeyW')) targetPitch += 1;
+      if (pressedKeys.has('KeyS')) targetPitch -= 1;
+
+      let targetRoll = 0;
+      if (pressedKeys.has('KeyD')) targetRoll += 1;
+      if (pressedKeys.has('KeyA')) targetRoll -= 1;
+
+      const responseSpeed = 4.0;
+      const alpha = 1 - Math.exp(-responseSpeed * dt);
+      state.pitchInput += (targetPitch - state.pitchInput) * alpha;
+      state.rollInput += (targetRoll - state.rollInput) * alpha;
+
+      const tailMaxRad = THREE.MathUtils.degToRad(33.73);
+      const stickMaxXRad = THREE.MathUtils.degToRad(31.25);
+      const stickMaxZRad = THREE.MathUtils.degToRad(24.25);
+
+      const leftTail = getNode('左-水平尾翼');
+      if (leftTail) {
+        const initX = initialRotations['左-水平尾翼'] ? initialRotations['左-水平尾翼'].x : 0;
+        const deltaX = THREE.MathUtils.clamp((-state.pitchInput + state.rollInput) * tailMaxRad, -tailMaxRad, tailMaxRad);
+        leftTail.rotation.x = initX + deltaX;
+      }
+
+      const rightTail = getNode('右-水平尾翼');
+      if (rightTail) {
+        const initX = initialRotations['右-水平尾翼'] ? initialRotations['右-水平尾翼'].x : 0;
+        const deltaX = THREE.MathUtils.clamp((-state.pitchInput - state.rollInput) * tailMaxRad, -tailMaxRad, tailMaxRad);
+        rightTail.rotation.x = initX + deltaX;
+      }
+
+      ['前-操縦桿', '後-操縦桿'].forEach((name) => {
+        const stick = getNode(name);
+        if (!stick) return;
+        const init = initialRotations[name] || { x: 0, z: 0 };
+        const deltaX = THREE.MathUtils.clamp(state.pitchInput * stickMaxXRad, -stickMaxXRad, stickMaxXRad);
+        const deltaZ = THREE.MathUtils.clamp(state.rollInput * stickMaxZRad, -stickMaxZRad, stickMaxZRad);
+        stick.rotation.x = init.x + deltaX;
+        stick.rotation.z = init.z + deltaZ;
+      });
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       const dt = clock.getDelta();
+
+      updateFlightControls(dt);
+
+      for (let i = animations.length - 1; i >= 0; i--) {
+        const anim = animations[i];
+        anim.elapsed += dt;
+        const progress = anim.duration > 0 ? Math.min(anim.elapsed / anim.duration, 1) : 1;
+
+        if (anim.isXYZ) {
+          anim.obj.rotation.x = anim.startX + (anim.targetX - anim.startX) * progress;
+          anim.obj.rotation.y = anim.startY + (anim.targetY - anim.startY) * progress;
+          anim.obj.rotation.z = anim.startZ + (anim.targetZ - anim.startZ) * progress;
+        } else {
+          anim.obj.rotation[anim.axis] = anim.startVal + (anim.targetVal - anim.startVal) * progress;
+        }
+
+        if (progress >= 1) {
+          animations.splice(i, 1);
+          if (anim.onComplete) {
+            anim.onComplete();
+          }
+        }
+      }
 
       if (controls.enabled) {
         controls.update();
