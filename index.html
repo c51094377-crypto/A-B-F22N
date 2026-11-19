@@ -42,6 +42,7 @@
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 操縦席 ⇄ 後部座席</div>
+    <div>[0] PerspectiveCamera ⇄ PerspectiveCamera_2</div>
     <div>[￥] フリカメ（マウス操作有効）</div>
     <div>[C] キャノピー開閉</div>
     <div>[G] 脚・脚扉の収納 / 展開</div>
@@ -127,6 +128,8 @@
     const cameras = {};
     let seatIndex = 0;
     const seatNames = ['操縦席', '後部座席'];
+    let perspIndex = 0;
+    const perspNames = ['PerspectiveCamera', 'PerspectiveCamera_2'];
 
     let isFreeLook = false;
     let isDragging = false;
@@ -423,6 +426,7 @@
         });
 
         seatIndex = 0;
+        perspIndex = 0;
         if (cameras['操縦席']) {
           switchCamera('操縦席');
         } else if (cameras['後部座席']) {
@@ -509,6 +513,17 @@
           seatIndex = (seatIndex + 1) % seatNames.length;
         } else {
           const altName = seatNames[(seatIndex + 1) % seatNames.length];
+          if (cameras[altName]) {
+            switchCamera(altName);
+          }
+        }
+      } else if (e.key === '0' || e.code === 'Digit0') {
+        const targetName = perspNames[perspIndex];
+        if (cameras[targetName]) {
+          switchCamera(targetName);
+          perspIndex = (perspIndex + 1) % perspNames.length;
+        } else {
+          const altName = perspNames[(perspIndex + 1) % perspNames.length];
           if (cameras[altName]) {
             switchCamera(altName);
           }
