@@ -69,13 +69,14 @@
     defaultCamera.position.set(0, 2, 5);
     let activeCamera = defaultCamera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.85;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     document.body.appendChild(renderer.domElement);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -91,6 +92,7 @@
     const envRT = pmremGenerator.fromScene(skyEnvScene, 0.04);
     scene.environment = envRT.texture;
     scene.environmentIntensity = 1.0;
+    pmremGenerator.dispose();
 
     sky.material.uniforms['turbidity'].value = 4;
     sky.material.uniforms['rayleigh'].value = 2;
@@ -107,8 +109,8 @@
     const dirLight = new THREE.DirectionalLight(0xfff1dc, 2.2);
     dirLight.position.copy(sun).multiplyScalar(100);
     dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
     dirLight.shadow.camera.near = 1;
     dirLight.shadow.camera.far = 300;
     dirLight.shadow.camera.left = -30;
@@ -141,9 +143,23 @@
     let turretVelocity = 0;
 
     const raycaster = new THREE.Raycaster();
+    raycaster.firstHitOnly = true;
     const downDir = new THREE.Vector3(0, -1, 0);
     let allSceneMeshes = [];
     const physicsEntities = [];
+
+    const _worldPos = new THREE.Vector3();
+    const _rayOrigin = new THREE.Vector3();
+    const _forward = new THREE.Vector3();
+    const _right = new THREE.Vector3();
+    const _moveDir = new THREE.Vector3();
+    const _moveStepWorld = new THREE.Vector3();
+    const _horizDir = new THREE.Vector3();
+    const _finalMoveWorld = new THREE.Vector3();
+    const _parentScale = new THREE.Vector3();
+    const _parentQuat = new THREE.Quaternion();
+    const _meshBox = new THREE.Box3();
+    const _rayBox = new THREE.Box3();
 
     function getNode(name) {
       return nodes[name] || null;
@@ -154,8 +170,18 @@
       physicsEntities.length = 0;
       if (!loadedModel) return;
 
+      loadedModel.updateMatrixWorld(true);
+
       loadedModel.traverse((child) => {
         if (child.isMesh) {
+          if (!child.geometry.boundingBox) {
+            child.geometry.computeBoundingBox();
+          }
+          if (!child.geometry.boundingSphere) {
+            child.geometry.computeBoundingSphere();
+          }
+          const worldBox = child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld);
+          child.userData.worldBox = worldBox;
           allSceneMeshes.push(child);
         }
       });
@@ -196,9 +222,28 @@
           isFrikame: t.isFrikame,
           collidableMeshes,
           vy: 0,
-          onGround: false
+          onGround: false,
+          settled: false,
+          lastGroundY: null
         });
       });
+    }
+
+    function filterBroadphase(meshes, rayStart, rayEnd, padding) {
+      _rayBox.makeEmpty();
+      _rayBox.expandByPoint(rayStart);
+      _rayBox.expandByPoint(rayEnd);
+      _rayBox.expandByScalar(padding);
+
+      const candidates = [];
+      for (let i = 0; i < meshes.length; i++) {
+        const m = meshes[i];
+        const wb = m.userData.worldBox;
+        if (!wb || wb.intersectsBox(_rayBox)) {
+          candidates.push(m);
+        }
+      }
+      return candidates;
     }
 
     function updatePhysics(dt) {
@@ -207,130 +252,155 @@
       const gravity = -9.8;
       const walkSpeed = 60.0;
       const jumpSpeed = 27.5;
-      const worldPos = new THREE.Vector3();
-      const rayOrigin = new THREE.Vector3();
-      const forward = new THREE.Vector3();
-      const right = new THREE.Vector3();
-      const moveDir = new THREE.Vector3();
+      const _rayEnd = new THREE.Vector3();
 
-      loadedModel.updateMatrixWorld(true);
-
-      physicsEntities.forEach((entity) => {
+      for (let idx = 0; idx < physicsEntities.length; idx++) {
+        const entity = physicsEntities[idx];
         const obj = entity.obj;
+        const isControlledFrikame = entity.isFrikame && activeCamera === obj;
 
-        if (entity.isFrikame && activeCamera === obj) {
-          forward.set(0, 0, -1).applyQuaternion(obj.quaternion);
-          forward.y = 0;
-          if (forward.lengthSq() > 0) forward.normalize();
+        if (!isControlledFrikame && entity.settled && entity.onGround && entity.vy === 0) {
+          continue;
+        }
 
-          right.set(1, 0, 0).applyQuaternion(obj.quaternion);
-          right.y = 0;
-          if (right.lengthSq() > 0) right.normalize();
+        if (isControlledFrikame) {
+          _forward.set(0, 0, -1).applyQuaternion(obj.quaternion);
+          _forward.y = 0;
+          if (_forward.lengthSq() > 0) _forward.normalize();
 
-          moveDir.set(0, 0, 0);
-          if (pressedKeys.has('KeyW')) moveDir.add(forward);
-          if (pressedKeys.has('KeyS')) moveDir.sub(forward);
-          if (pressedKeys.has('KeyD')) moveDir.add(right);
-          if (pressedKeys.has('KeyA')) moveDir.sub(right);
+          _right.set(1, 0, 0).applyQuaternion(obj.quaternion);
+          _right.y = 0;
+          if (_right.lengthSq() > 0) _right.normalize();
 
-          if (moveDir.lengthSq() > 0) {
-            moveDir.normalize();
-            const moveStepWorld = moveDir.clone().multiplyScalar(walkSpeed * dt);
-            const stepLen = moveStepWorld.length();
+          _moveDir.set(0, 0, 0);
+          if (pressedKeys.has('KeyW')) _moveDir.add(_forward);
+          if (pressedKeys.has('KeyS')) _moveDir.sub(_forward);
+          if (pressedKeys.has('KeyD')) _moveDir.add(_right);
+          if (pressedKeys.has('KeyA')) _moveDir.sub(_right);
+
+          if (_moveDir.lengthSq() > 0) {
+            _moveDir.normalize();
+            _moveStepWorld.copy(_moveDir).multiplyScalar(walkSpeed * dt);
+            const stepLen = _moveStepWorld.length();
 
             obj.updateMatrixWorld(true);
-            obj.getWorldPosition(worldPos);
+            obj.getWorldPosition(_worldPos);
 
             let allowedStep = stepLen;
             if (entity.collidableMeshes.length > 0 && stepLen > 0) {
-              const horizDir = moveStepWorld.clone().normalize();
+              _horizDir.copy(_moveStepWorld).normalize();
               const bodyRadius = 0.6;
               const checkHeights = [0.5 - entity.laserLength + 0.5, -entity.laserLength * 0.5, 0];
               for (let h = 0; h < checkHeights.length; h++) {
-                rayOrigin.copy(worldPos);
-                rayOrigin.y += checkHeights[h];
-                raycaster.set(rayOrigin, horizDir);
-                raycaster.near = 0;
-                raycaster.far = stepLen + bodyRadius;
-                const hits = raycaster.intersectObjects(entity.collidableMeshes, false);
-                if (hits.length > 0) {
-                  const safeDist = Math.max(0, hits[0].distance - bodyRadius);
-                  if (safeDist < allowedStep) {
-                    allowedStep = safeDist;
+                _rayOrigin.copy(_worldPos);
+                _rayOrigin.y += checkHeights[h];
+                _rayEnd.copy(_rayOrigin).addScaledVector(_horizDir, stepLen + bodyRadius);
+                const candidates = filterBroadphase(entity.collidableMeshes, _rayOrigin, _rayEnd, 1.0);
+                if (candidates.length > 0) {
+                  raycaster.set(_rayOrigin, _horizDir);
+                  raycaster.near = 0;
+                  raycaster.far = stepLen + bodyRadius;
+                  const hits = raycaster.intersectObjects(candidates, false);
+                  if (hits.length > 0) {
+                    const safeDist = Math.max(0, hits[0].distance - bodyRadius);
+                    if (safeDist < allowedStep) {
+                      allowedStep = safeDist;
+                    }
                   }
                 }
               }
             }
 
             if (allowedStep > 0) {
-              const finalMoveWorld = moveDir.multiplyScalar(allowedStep);
+              _finalMoveWorld.copy(_moveDir).multiplyScalar(allowedStep);
               if (obj.parent) {
-                const parentScale = new THREE.Vector3();
-                obj.parent.getWorldScale(parentScale);
-                const invQuat = obj.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-                finalMoveWorld.applyQuaternion(invQuat);
-                obj.position.x += finalMoveWorld.x / (parentScale.x || 1);
-                obj.position.z += finalMoveWorld.z / (parentScale.z || 1);
+                obj.parent.getWorldScale(_parentScale);
+                obj.parent.getWorldQuaternion(_parentQuat).invert();
+                _finalMoveWorld.applyQuaternion(_parentQuat);
+                obj.position.x += _finalMoveWorld.x / (_parentScale.x || 1);
+                obj.position.z += _finalMoveWorld.z / (_parentScale.z || 1);
               } else {
-                obj.position.add(finalMoveWorld);
+                obj.position.add(_finalMoveWorld);
               }
+              entity.settled = false;
             }
           }
 
           if (pressedKeys.has('Space') && entity.onGround) {
             entity.vy = jumpSpeed;
             entity.onGround = false;
+            entity.settled = false;
           }
+        }
+
+        if (entity.onGround && entity.vy === 0 && !isControlledFrikame) {
+          entity.settled = true;
+          continue;
         }
 
         entity.vy += gravity * dt;
         const dyWorld = entity.vy * dt;
 
         obj.updateMatrixWorld(true);
-        obj.getWorldPosition(worldPos);
+        obj.getWorldPosition(_worldPos);
 
         const rayOffsetUp = 0.5;
-        rayOrigin.copy(worldPos);
-        rayOrigin.y += rayOffsetUp;
+        _rayOrigin.copy(_worldPos);
+        _rayOrigin.y += rayOffsetUp;
 
         const maxDist = rayOffsetUp + entity.laserLength + Math.max(0, -dyWorld) + 0.05;
-        raycaster.set(rayOrigin, downDir);
-        raycaster.near = 0;
-        raycaster.far = maxDist;
+        _rayEnd.copy(_rayOrigin);
+        _rayEnd.y -= maxDist;
 
         let hitY = null;
         if (entity.collidableMeshes.length > 0) {
-          const intersects = raycaster.intersectObjects(entity.collidableMeshes, false);
-          if (intersects.length > 0) {
-            hitY = intersects[0].point.y;
+          const candidates = filterBroadphase(entity.collidableMeshes, _rayOrigin, _rayEnd, 0.5);
+          if (candidates.length > 0) {
+            raycaster.set(_rayOrigin, downDir);
+            raycaster.near = 0;
+            raycaster.far = maxDist;
+            const intersects = raycaster.intersectObjects(candidates, false);
+            if (intersects.length > 0) {
+              hitY = intersects[0].point.y;
+            }
           }
         }
 
-        const nextWorldY = worldPos.y + dyWorld;
+        const nextWorldY = _worldPos.y + dyWorld;
         const targetFloorWorldY = hitY !== null ? hitY + entity.laserLength : null;
 
         if (targetFloorWorldY !== null && nextWorldY <= targetFloorWorldY && entity.vy <= 0) {
-          const correctionWorldY = targetFloorWorldY - worldPos.y;
-          if (obj.parent) {
-            const parentScale = new THREE.Vector3();
-            obj.parent.getWorldScale(parentScale);
-            obj.position.y += correctionWorldY / (parentScale.y || 1);
-          } else {
-            obj.position.y += correctionWorldY;
+          const correctionWorldY = targetFloorWorldY - _worldPos.y;
+          if (Math.abs(correctionWorldY) > 1e-5) {
+            if (obj.parent) {
+              obj.parent.getWorldScale(_parentScale);
+              obj.position.y += correctionWorldY / (_parentScale.y || 1);
+            } else {
+              obj.position.y += correctionWorldY;
+            }
+            obj.updateMatrixWorld(true);
+            obj.traverse((sub) => {
+              if (sub.isMesh && sub.geometry.boundingBox) {
+                sub.userData.worldBox = sub.geometry.boundingBox.clone().applyMatrix4(sub.matrixWorld);
+              }
+            });
           }
           entity.vy = 0;
           entity.onGround = true;
+          if (!isControlledFrikame) {
+            entity.settled = true;
+          }
         } else {
           if (obj.parent) {
-            const parentScale = new THREE.Vector3();
-            obj.parent.getWorldScale(parentScale);
-            obj.position.y += dyWorld / (parentScale.y || 1);
+            obj.parent.getWorldScale(_parentScale);
+            obj.position.y += dyWorld / (_parentScale.y || 1);
           } else {
             obj.position.y += dyWorld;
           }
           entity.onGround = false;
+          entity.settled = false;
         }
-      });
+      }
     }
 
     function switchCamera(name) {
@@ -338,8 +408,6 @@
       if (!target) return;
 
       target.near = 0.01;
-      target.updateProjectionMatrix();
-
       target.aspect = window.innerWidth / window.innerHeight;
       target.updateProjectionMatrix();
       activeCamera = target;
@@ -374,9 +442,9 @@
           if (obj.isMesh) {
             obj.castShadow = true;
             obj.receiveShadow = true;
+            obj.frustumCulled = true;
             if (obj.material) {
               obj.material.envMapIntensity = 1.0;
-              obj.material.needsUpdate = true;
             }
           }
           if (obj.name) {
@@ -401,6 +469,7 @@
         }
 
         setupPhysics();
+        renderer.shadowMap.needsUpdate = true;
 
         seatIndex = 0;
         group2Index = 0;
@@ -509,17 +578,20 @@
 
       const turret = getNode('銃座');
       if (turret) {
-        const initY = initialRotations['銃座'] ? initialRotations['銃座'].y : 0;
         let inputDir = 0;
         if (pressedKeys.has('KeyQ')) inputDir += 1;
         if (pressedKeys.has('KeyE')) inputDir -= 1;
 
-        const acceleration = 5.0;
-        const damping = 3.0;
+        if (inputDir !== 0 || Math.abs(turretVelocity) > 1e-5) {
+          const acceleration = 5.0;
+          const damping = 3.0;
 
-        turretVelocity += inputDir * acceleration * dt;
-        turretVelocity -= turretVelocity * damping * dt;
-        turret.rotation.y += turretVelocity * dt;
+          turretVelocity += inputDir * acceleration * dt;
+          turretVelocity -= turretVelocity * damping * dt;
+          turret.rotation.y += turretVelocity * dt;
+        } else {
+          turretVelocity = 0;
+        }
       }
 
       if (controls.enabled) {
