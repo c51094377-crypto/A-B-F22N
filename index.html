@@ -43,7 +43,7 @@
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 射手 ⇄ 車長</div>
     <div>[2] ガンナー ⇄ 運転席 ⇄ 助手席</div>
-    <div>[￥] フリカメ（マウス操作有効）</div>
+    <div>[￥] フリカメ（WASD歩行・Spaceジャンプ・マウス操作）</div>
     <div>[Q/E] 銃座旋回（慣性付き）</div>
   </div>
 
@@ -140,8 +140,162 @@
     const pressedKeys = new Set();
     let turretVelocity = 0;
 
+    const raycaster = new THREE.Raycaster();
+    const downDir = new THREE.Vector3(0, -1, 0);
+    let baseMeshes = [];
+    const physicsEntities = [];
+
     function getNode(name) {
       return nodes[name] || null;
+    }
+
+    function setupPhysics() {
+      baseMeshes = [];
+      physicsEntities.length = 0;
+      if (!loadedModel) return;
+
+      const baseGroup = getNode('基地');
+      if (baseGroup) {
+        baseGroup.traverse((child) => {
+          if (child.isMesh) {
+            baseMeshes.push(child);
+          }
+        });
+      }
+
+      const targets = [
+        { obj: cameras['フリカメ'], laserLength: 18.405, isFrikame: true },
+        { obj: getNode('8輪装輪装甲車'), laserLength: 0, isFrikame: false },
+        { obj: getNode('HMMWV'), laserLength: 0, isFrikame: false }
+      ];
+
+      loadedModel.children.forEach((child) => {
+        if (child.name === '基地') return;
+        if (child === cameras['フリカメ'] || child === getNode('8輪装輪装甲車') || child === getNode('HMMWV')) return;
+        if (child.isCamera && child.name !== 'フリカメ') return;
+        let containsSeatCamera = false;
+        child.traverse((sub) => {
+          if (sub.isCamera && sub.name !== 'フリカメ') {
+            containsSeatCamera = true;
+          }
+        });
+        if (!containsSeatCamera) {
+          targets.push({ obj: child, laserLength: 0, isFrikame: false });
+        }
+      });
+
+      targets.forEach((t) => {
+        if (!t.obj) return;
+        physicsEntities.push({
+          obj: t.obj,
+          laserLength: t.laserLength,
+          isFrikame: t.isFrikame,
+          vy: 0,
+          onGround: false
+        });
+      });
+    }
+
+    function updatePhysics(dt) {
+      if (physicsEntities.length === 0) return;
+
+      const gravity = -9.8;
+      const walkSpeed = 6.0;
+      const jumpSpeed = 5.5;
+      const worldPos = new THREE.Vector3();
+      const rayOrigin = new THREE.Vector3();
+      const forward = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      const moveDir = new THREE.Vector3();
+
+      loadedModel.updateMatrixWorld(true);
+
+      physicsEntities.forEach((entity) => {
+        const obj = entity.obj;
+
+        if (entity.isFrikame && activeCamera === obj) {
+          forward.set(0, 0, -1).applyQuaternion(obj.quaternion);
+          forward.y = 0;
+          if (forward.lengthSq() > 0) forward.normalize();
+
+          right.set(1, 0, 0).applyQuaternion(obj.quaternion);
+          right.y = 0;
+          if (right.lengthSq() > 0) right.normalize();
+
+          moveDir.set(0, 0, 0);
+          if (pressedKeys.has('KeyW')) moveDir.add(forward);
+          if (pressedKeys.has('KeyS')) moveDir.sub(forward);
+          if (pressedKeys.has('KeyD')) moveDir.add(right);
+          if (pressedKeys.has('KeyA')) moveDir.sub(right);
+
+          if (moveDir.lengthSq() > 0) {
+            moveDir.normalize().multiplyScalar(walkSpeed * dt);
+            if (obj.parent) {
+              const parentScale = new THREE.Vector3();
+              obj.parent.getWorldScale(parentScale);
+              const invQuat = obj.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+              moveDir.applyQuaternion(invQuat);
+              obj.position.x += moveDir.x / (parentScale.x || 1);
+              obj.position.z += moveDir.z / (parentScale.z || 1);
+            } else {
+              obj.position.add(moveDir);
+            }
+          }
+
+          if (pressedKeys.has('Space') && entity.onGround) {
+            entity.vy = jumpSpeed;
+            entity.onGround = false;
+          }
+        }
+
+        entity.vy += gravity * dt;
+        const dyWorld = entity.vy * dt;
+
+        obj.updateMatrixWorld(true);
+        obj.getWorldPosition(worldPos);
+
+        const rayOffsetUp = 0.5;
+        rayOrigin.copy(worldPos);
+        rayOrigin.y += rayOffsetUp;
+
+        const maxDist = rayOffsetUp + entity.laserLength + Math.max(0, -dyWorld) + 0.05;
+        raycaster.set(rayOrigin, downDir);
+        raycaster.near = 0;
+        raycaster.far = maxDist;
+
+        let hitY = null;
+        if (baseMeshes.length > 0) {
+          const intersects = raycaster.intersectObjects(baseMeshes, false);
+          if (intersects.length > 0) {
+            hitY = intersects[0].point.y;
+          }
+        }
+
+        const nextWorldY = worldPos.y + dyWorld;
+        const targetFloorWorldY = hitY !== null ? hitY + entity.laserLength : null;
+
+        if (targetFloorWorldY !== null && nextWorldY <= targetFloorWorldY && entity.vy <= 0) {
+          const correctionWorldY = targetFloorWorldY - worldPos.y;
+          if (obj.parent) {
+            const parentScale = new THREE.Vector3();
+            obj.parent.getWorldScale(parentScale);
+            obj.position.y += correctionWorldY / (parentScale.y || 1);
+          } else {
+            obj.position.y += correctionWorldY;
+          }
+          entity.vy = 0;
+          entity.onGround = true;
+        } else {
+          if (obj.parent) {
+            const parentScale = new THREE.Vector3();
+            obj.parent.getWorldScale(parentScale);
+            obj.position.y += dyWorld / (parentScale.y || 1);
+          } else {
+            obj.position.y += dyWorld;
+          }
+          entity.onGround = false;
+        }
+      });
     }
 
     function switchCamera(name) {
@@ -210,6 +364,8 @@
             }
           });
         }
+
+        setupPhysics();
 
         seatIndex = 0;
         group2Index = 0;
@@ -312,7 +468,9 @@
 
     function animate() {
       requestAnimationFrame(animate);
-      const dt = clock.getDelta();
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      updatePhysics(dt);
 
       const turret = getNode('銃座');
       if (turret) {
