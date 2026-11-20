@@ -142,7 +142,7 @@
 
     const raycaster = new THREE.Raycaster();
     const downDir = new THREE.Vector3(0, -1, 0);
-    let baseMeshes = [];
+    let allSceneMeshes = [];
     const physicsEntities = [];
 
     function getNode(name) {
@@ -150,18 +150,15 @@
     }
 
     function setupPhysics() {
-      baseMeshes = [];
+      allSceneMeshes = [];
       physicsEntities.length = 0;
       if (!loadedModel) return;
 
-      const baseGroup = getNode('基地');
-      if (baseGroup) {
-        baseGroup.traverse((child) => {
-          if (child.isMesh) {
-            baseMeshes.push(child);
-          }
-        });
-      }
+      loadedModel.traverse((child) => {
+        if (child.isMesh) {
+          allSceneMeshes.push(child);
+        }
+      });
 
       const targets = [
         { obj: cameras['フリカメ'], laserLength: 18.405, isFrikame: true },
@@ -186,10 +183,18 @@
 
       targets.forEach((t) => {
         if (!t.obj) return;
+        const ownMeshes = new Set();
+        t.obj.traverse((sub) => {
+          if (sub.isMesh) {
+            ownMeshes.add(sub);
+          }
+        });
+        const collidableMeshes = allSceneMeshes.filter((m) => !ownMeshes.has(m));
         physicsEntities.push({
           obj: t.obj,
           laserLength: t.laserLength,
           isFrikame: t.isFrikame,
+          collidableMeshes,
           vy: 0,
           onGround: false
         });
@@ -200,8 +205,8 @@
       if (physicsEntities.length === 0) return;
 
       const gravity = -9.8;
-      const walkSpeed = 6.0;
-      const jumpSpeed = 5.5;
+      const walkSpeed = 60.0;
+      const jumpSpeed = 27.5;
       const worldPos = new THREE.Vector3();
       const rayOrigin = new THREE.Vector3();
       const forward = new THREE.Vector3();
@@ -229,16 +234,46 @@
           if (pressedKeys.has('KeyA')) moveDir.sub(right);
 
           if (moveDir.lengthSq() > 0) {
-            moveDir.normalize().multiplyScalar(walkSpeed * dt);
-            if (obj.parent) {
-              const parentScale = new THREE.Vector3();
-              obj.parent.getWorldScale(parentScale);
-              const invQuat = obj.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-              moveDir.applyQuaternion(invQuat);
-              obj.position.x += moveDir.x / (parentScale.x || 1);
-              obj.position.z += moveDir.z / (parentScale.z || 1);
-            } else {
-              obj.position.add(moveDir);
+            moveDir.normalize();
+            const moveStepWorld = moveDir.clone().multiplyScalar(walkSpeed * dt);
+            const stepLen = moveStepWorld.length();
+
+            obj.updateMatrixWorld(true);
+            obj.getWorldPosition(worldPos);
+
+            let allowedStep = stepLen;
+            if (entity.collidableMeshes.length > 0 && stepLen > 0) {
+              const horizDir = moveStepWorld.clone().normalize();
+              const bodyRadius = 0.6;
+              const checkHeights = [0.5 - entity.laserLength + 0.5, -entity.laserLength * 0.5, 0];
+              for (let h = 0; h < checkHeights.length; h++) {
+                rayOrigin.copy(worldPos);
+                rayOrigin.y += checkHeights[h];
+                raycaster.set(rayOrigin, horizDir);
+                raycaster.near = 0;
+                raycaster.far = stepLen + bodyRadius;
+                const hits = raycaster.intersectObjects(entity.collidableMeshes, false);
+                if (hits.length > 0) {
+                  const safeDist = Math.max(0, hits[0].distance - bodyRadius);
+                  if (safeDist < allowedStep) {
+                    allowedStep = safeDist;
+                  }
+                }
+              }
+            }
+
+            if (allowedStep > 0) {
+              const finalMoveWorld = moveDir.multiplyScalar(allowedStep);
+              if (obj.parent) {
+                const parentScale = new THREE.Vector3();
+                obj.parent.getWorldScale(parentScale);
+                const invQuat = obj.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+                finalMoveWorld.applyQuaternion(invQuat);
+                obj.position.x += finalMoveWorld.x / (parentScale.x || 1);
+                obj.position.z += finalMoveWorld.z / (parentScale.z || 1);
+              } else {
+                obj.position.add(finalMoveWorld);
+              }
             }
           }
 
@@ -264,8 +299,8 @@
         raycaster.far = maxDist;
 
         let hitY = null;
-        if (baseMeshes.length > 0) {
-          const intersects = raycaster.intersectObjects(baseMeshes, false);
+        if (entity.collidableMeshes.length > 0) {
+          const intersects = raycaster.intersectObjects(entity.collidableMeshes, false);
           if (intersects.length > 0) {
             hitY = intersects[0].point.y;
           }
