@@ -42,7 +42,9 @@
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
     <div>[1] 射手 ⇄ 車長</div>
+    <div>[2] ガンナー ⇄ 運転席 ⇄ 助手席</div>
     <div>[￥] フリカメ（マウス操作有効）</div>
+    <div>[Q/E] 銃座旋回（慣性付き）</div>
   </div>
 
   <script type="module">
@@ -122,6 +124,9 @@
     let seatIndex = 0;
     const seatNames = ['射手', '車長'];
 
+    let group2Index = 0;
+    const group2Names = ['ガンナー', '運転席', '助手席'];
+
     let isFreeLook = false;
     let isDragging = false;
     let prevMouseX = 0;
@@ -132,6 +137,8 @@
 
     const nodes = {};
     const initialRotations = {};
+    const pressedKeys = new Set();
+    let turretVelocity = 0;
 
     function getNode(name) {
       return nodes[name] || null;
@@ -169,6 +176,7 @@
         for (const key in initialRotations) {
           delete initialRotations[key];
         }
+        turretVelocity = 0;
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -204,6 +212,7 @@
         }
 
         seatIndex = 0;
+        group2Index = 0;
         if (cameras['射手']) {
           switchCamera('射手');
         } else if (cameras['車長']) {
@@ -255,6 +264,7 @@
     });
 
     window.addEventListener('keydown', (e) => {
+      pressedKeys.add(e.code);
       if (e.repeat) return;
 
       if (e.key === '1' || e.code === 'Digit1') {
@@ -268,9 +278,28 @@
             switchCamera(altName);
           }
         }
+      } else if (e.key === '2' || e.code === 'Digit2') {
+        const targetName = group2Names[group2Index];
+        if (cameras[targetName]) {
+          switchCamera(targetName);
+          group2Index = (group2Index + 1) % group2Names.length;
+        } else {
+          const altName = group2Names[(group2Index + 1) % group2Names.length];
+          if (cameras[altName]) {
+            switchCamera(altName);
+          }
+        }
       } else if (e.key === '¥' || e.key === '\\' || e.code === 'IntlYen' || e.code === 'Backslash') {
         switchCamera('フリカメ');
       }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      pressedKeys.delete(e.code);
+    });
+
+    window.addEventListener('blur', () => {
+      pressedKeys.clear();
     });
 
     window.addEventListener('resize', () => {
@@ -279,8 +308,26 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    const clock = new THREE.Clock();
+
     function animate() {
       requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      const turret = getNode('銃座');
+      if (turret) {
+        const initY = initialRotations['銃座'] ? initialRotations['銃座'].y : 0;
+        let inputDir = 0;
+        if (pressedKeys.has('KeyQ')) inputDir += 1;
+        if (pressedKeys.has('KeyE')) inputDir -= 1;
+
+        const acceleration = 5.0;
+        const damping = 3.0;
+
+        turretVelocity += inputDir * acceleration * dt;
+        turretVelocity -= turretVelocity * damping * dt;
+        turret.rotation.y += turretVelocity * dt;
+      }
 
       if (controls.enabled) {
         controls.update();
