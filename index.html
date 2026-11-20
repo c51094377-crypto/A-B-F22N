@@ -32,31 +32,44 @@
       bottom: 20px;
       right: 20px;
       z-index: 10;
-      background: rgba(0, 0, 0, 0.75);
-      padding: 14px 18px;
-      border-radius: 10px;
+      background: rgba(20, 20, 20, 0.85);
+      padding: 16px 20px;
+      border-radius: 12px;
       font-size: 14px;
       display: none;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 2px solid #444;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      width: 180px;
+    }
+    .mt-header {
+      text-align: center;
+      margin-bottom: 10px;
+      font-weight: bold;
+      border-bottom: 1px solid #444;
+      padding-bottom: 6px;
+      letter-spacing: 1px;
     }
     .gear-grid {
       display: grid;
-      grid-template-columns: repeat(3, 40px);
-      gap: 6px;
-      margin-top: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
       text-align: center;
     }
     .gear-box {
-      background: #222;
-      border: 2px solid #555;
-      padding: 8px 0;
-      border-radius: 4px;
+      background: #1a1a1a;
+      border: 2px solid #444;
+      padding: 10px 0;
+      border-radius: 6px;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 14px;
+      color: #aaa;
+      transition: all 0.15s ease;
     }
     .gear-box.active {
+      background: #3a1010;
       border-color: #ff3333;
-      box-shadow: 0 0 10px #ff3333;
+      box-shadow: 0 0 12px rgba(255, 51, 51, 0.8);
       color: #ff3333;
     }
   </style>
@@ -81,7 +94,7 @@
   </div>
 
   <div id="manualUI">
-    <div>MTステータス: <span id="mtState">アイドリング</span></div>
+    <div class="mt-header">H-PATTERN MT</div>
     <div>速度: <span id="carSpeed">0</span> km/h</div>
     <div class="gear-grid">
       <div id="boxR" class="gear-box">R</div>
@@ -189,7 +202,6 @@
 
     const camNameEl = document.getElementById('camName');
     const manualUIEl = document.getElementById('manualUI');
-    const mtStateEl = document.getElementById('mtState');
     const carSpeedEl = document.getElementById('carSpeed');
 
     const nodes = {};
@@ -233,7 +245,6 @@
 
       if (isControlCamera) {
         manualUIEl.style.display = 'block';
-        mtStateEl.textContent = currentGear === 'N' ? 'アイドリング (N)' : (currentGear === 'R' ? 'バック (R)' : `ギア ${currentGear}`);
         carSpeedEl.textContent = Math.round(carSpeed);
 
         const boxes = ['R', 'N', '1', '2', '3', '4', '5', '6', '7', '8'];
@@ -505,15 +516,11 @@
       let throttle = pressedKeys.has('KeyW');
       let brake = pressedKeys.has('KeyS');
 
-      let maxSpeed = 120;
-      let accelFactor = 0;
-
       if (throttle) {
         if (currentGear === 'R') {
           carSpeed = Math.max(-30, carSpeed - 15 * dt);
         } else if (currentGear >= '1' && currentGear <= '8') {
           const gNum = parseInt(currentGear);
-          // 効率よく加速、いきなり8は加速しない
           let efficiency = Math.pow(gNum / 8, 1.5);
           if (gNum === 8) efficiency = 0.2;
           else if (gNum === 1) efficiency = 0.9;
@@ -522,18 +529,15 @@
           carSpeed += (targetMax - carSpeed) * dt * 2.0 * efficiency + 5 * dt * efficiency;
           carSpeed = Math.min(120, carSpeed);
         } else {
-          // N (アイドリング)
           carSpeed = Math.max(0, carSpeed - 5 * dt);
         }
       } else if (brake) {
-        // 1kmずつ減速
         if (carSpeed > 0) {
           carSpeed = Math.max(0, carSpeed - 1 * dt * 15);
         } else if (carSpeed < 0) {
           carSpeed = Math.min(0, carSpeed + 1 * dt * 15);
         }
       } else {
-        // 自然減速
         if (carSpeed > 0) carSpeed = Math.max(0, carSpeed - 3 * dt);
         else if (carSpeed < 0) carSpeed = Math.min(0, carSpeed + 3 * dt);
       }
@@ -545,7 +549,6 @@
           const bone = getNode(allAxles[i]);
           if (bone) {
             const initZ = initialRotations[allAxles[i]] ? initialRotations[allAxles[i]].z : 0;
-            // Wの回転方向を+Zに変更 (-Z回転をなくして +Z)
             bone.rotation.z = initZ + wheelRotationZ;
           }
         }
@@ -726,26 +729,22 @@
 
       if (isControlCamera) {
         if (e.code === 'KeyH') {
-          // 左シフト: N or R
           if (currentGear === 'N') currentGear = 'R';
           else if (currentGear >= '1' && currentGear <= '8') currentGear = 'N';
           updateManualUI();
         } else if (e.code === 'KeyK') {
-          // 右シフト: 1~8
           if (currentGear === 'N' || currentGear === 'R') currentGear = '1';
           else if (currentGear >= '1' && currentGear < '8') {
             currentGear = String(parseInt(currentGear) + 1);
           }
           updateManualUI();
         } else if (e.code === 'KeyU') {
-          // 上シフト
           if (currentGear === 'R') currentGear = 'N';
           else if (currentGear >= '2' && currentGear <= '8') {
             currentGear = String(parseInt(currentGear) - 1);
           }
           updateManualUI();
         } else if (e.code === 'KeyJ') {
-          // 下シフト
           if (currentGear === 'N') currentGear = 'R';
           else if (currentGear >= '1' && currentGear < '8') {
             currentGear = String(parseInt(currentGear) + 1);
