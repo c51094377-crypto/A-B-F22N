@@ -305,6 +305,7 @@
     const pressedKeys = new Set();
     let turretVelocity = 0;
     let steerAngle = 0;
+    let vehicleHeading = 0;
 
     // マニュアルトランスミッション状態
     // leverCol: 0=(1/2), 1=(3/4), 2=(5/6), 3=(7/8), 4=(R)
@@ -753,9 +754,10 @@
       speedValEl.textContent = Math.round(Math.abs(vehicleSpeedKmh));
       rpmBarEl.style.width = Math.round(rpmRatio * 100) + '%';
 
-      // 車軸の回転（前進: Wで-Z方向、バック(R): Wで+Z方向）
+      // 車軸の回転（1〜8速: Wで+Z方向、R: Wで-Z方向）
       if (Math.abs(vehicleSpeedKmh) > 0.01) {
-        const angularVel = -vehicleSpeedKmh * 0.25;
+        const signZ = (currentGear === 'R') ? 1.0 : -1.0;
+        const angularVel = signZ * vehicleSpeedKmh * 0.25;
         for (let i = 0; i < allAxles.length; i++) {
           const bone = getNode(allAxles[i]);
           if (bone) {
@@ -797,6 +799,24 @@
           bone.rotation.y = initY + steerAngle;
         }
       }
+
+      // 「8輪装輪装甲車」グループの移動処理 (1〜8速は-Z、Rは+Z、曲がる時は半径±170.050)
+      const apcGroup = getNode('8輪装輪装甲車');
+      if (apcGroup && Math.abs(vehicleSpeedKmh) > 0.01) {
+        const moveDist = (vehicleSpeedKmh / 3.6) * dt; // m/s
+        const directionSign = (currentGear === 'R') ? 1.0 : -1.0;
+        const effectiveDist = moveDist * directionSign;
+
+        if (steerDir !== 0) {
+          const turnRadius = 170.050;
+          const angularSpeed = (Math.abs(vehicleSpeedKmh) / 3.6) / turnRadius;
+          const turnSign = (steerDir > 0) ? 1.0 : -1.0; // Dは+, Aは-
+          vehicleHeading += angularSpeed * dt * turnSign * directionSign;
+          apcGroup.rotation.y = vehicleHeading;
+        }
+
+        apcGroup.translateZ(effectiveDist);
+      }
     }
 
     function switchCamera(name) {
@@ -831,6 +851,7 @@
         }
         turretVelocity = 0;
         steerAngle = 0;
+        vehicleHeading = 0;
         leverCol = 1;
         leverRow = 0;
         vehicleSpeedKmh = 0;
