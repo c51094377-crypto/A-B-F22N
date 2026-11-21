@@ -753,9 +753,9 @@
       speedValEl.textContent = Math.round(Math.abs(vehicleSpeedKmh));
       rpmBarEl.style.width = Math.round(rpmRatio * 100) + '%';
 
-      // 車軸の回転（前進: Wで+Z方向、バック(R): Wで-Z方向）
+      // 車軸の回転（前進: Wで-Z方向、バック(R): Wで+Z方向）
       if (Math.abs(vehicleSpeedKmh) > 0.01) {
-        const angularVel = vehicleSpeedKmh * 0.25;
+        const angularVel = -vehicleSpeedKmh * 0.25;
         for (let i = 0; i < allAxles.length; i++) {
           const bone = getNode(allAxles[i]);
           if (bone) {
@@ -794,7 +794,7 @@
         const bone = getNode(name);
         if (bone) {
           const initY = initialRotations[name] ? initialRotations[name].y : 0;
-          bone.rotation.y = initY - steerAngle;
+          bone.rotation.y = initY + steerAngle;
         }
       }
     }
