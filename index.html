@@ -164,11 +164,11 @@
   <div id="ui">
     <input type="file" id="fileInput" accept=".glb" />
     <div>現在のカメラ: <strong id="camName">なし</strong></div>
-    <div>[1] 射手 ⇄ 車長 ⇄ 操縦手</div>
+    <div>[1] 射手 ⇄ 車長</div>
     <div>[2] ガンナー ⇄ 運転席 ⇄ 助手席</div>
     <div>[￥] フリカメ（WASD歩行・Spaceジャンプ・マウス操作）</div>
     <div>[Q/E] 銃座旋回（慣性付き）</div>
-    <div>[WASD] 車軸回転・操舵（射手・車長・操縦手カメラ時）</div>
+    <div>[WASD] 車軸回転・操舵（射手・車長カメラ時）</div>
   </div>
 
   <div id="mt-ui">
@@ -280,7 +280,7 @@
     let loadedModel = null;
     const cameras = {};
     let seatIndex = 0;
-    const seatNames = ['射手', '車長', '操縦手'];
+    const seatNames = ['射手', '車長'];
 
     let group2Index = 0;
     const group2Names = ['ガンナー', '運転席', '助手席'];
@@ -644,8 +644,7 @@
     function updateAxleControls(dt) {
       const isControlCamera =
         activeCamera === cameras['射手'] ||
-        activeCamera === cameras['車長'] ||
-        activeCamera === cameras['操縦手'];
+        activeCamera === cameras['車長'];
 
       mtUiEl.style.display = isControlCamera ? 'block' : 'none';
 
@@ -899,8 +898,6 @@
           switchCamera('射手');
         } else if (cameras['車長']) {
           switchCamera('車長');
-        } else if (cameras['操縦手']) {
-          switchCamera('操縦手');
         } else if (cameras['フリカメ']) {
           switchCamera('フリカメ');
         } else {
@@ -953,8 +950,7 @@
 
       const isControlCamera =
         activeCamera === cameras['射手'] ||
-        activeCamera === cameras['車長'] ||
-        activeCamera === cameras['操縦手'];
+        activeCamera === cameras['車長'];
 
       if (isControlCamera) {
         if (e.code === 'KeyU') {
