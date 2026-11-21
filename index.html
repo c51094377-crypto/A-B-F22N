@@ -27,149 +27,128 @@
       margin-bottom: 8px;
       display: block;
     }
-    #manualUI {
+    #mt-ui {
       position: absolute;
       bottom: 20px;
       right: 20px;
       z-index: 10;
-      background: linear-gradient(145deg, #2b2b2b, #141414);
-      padding: 16px 20px;
-      border-radius: 24px;
-      font-size: 14px;
-      display: none;
-      border: 3px solid #555;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.8), inset 0 2px 6px rgba(255,255,255,0.15);
-      width: 210px;
-      user-select: none;
-    }
-    .speed-display {
-      text-align: center;
-      margin-bottom: 10px;
-      font-weight: bold;
+      background: rgba(0, 0, 0, 0.78);
+      border: 2px solid #555;
+      border-radius: 10px;
+      padding: 14px 18px;
       font-size: 13px;
-      color: #ccc;
-      letter-spacing: 1px;
+      display: none;
+      user-select: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
     }
-    .shift-plate {
-      position: relative;
-      width: 180px;
-      height: 130px;
-      margin: 0 auto;
-      background: radial-gradient(circle at 30% 30%, #4a4a4a, #222222);
-      border-radius: 16px;
-      border: 2px solid #777;
-      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8), 0 2px 4px rgba(255,255,255,0.1);
+    #mt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
     }
-    .shift-svg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-    .gear-label {
-      position: absolute;
-      width: 26px;
-      height: 26px;
-      line-height: 24px;
-      text-align: center;
-      font-weight: 900;
-      font-size: 15px;
-      color: #bbb;
-      border-radius: 6px;
-      border: 2px solid transparent;
-      transform: translate(-50%, -50%);
-      transition: all 0.12s ease;
-    }
-    .gear-label.active {
-      border-color: #ff3333;
-      box-shadow: 0 0 10px #ff3333, inset 0 0 6px rgba(255, 51, 51, 0.5);
-      color: #ff3333;
-      background: rgba(255, 30, 30, 0.15);
-    }
-    .neutral-indicator {
-      position: absolute;
-      top: 65px;
-      left: 90px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: #444;
-      border: 2px solid #777;
-      transform: translate(-50%, -50%);
-      transition: all 0.12s ease;
-    }
-    .neutral-indicator.active {
-      background: #ff3333;
-      border-color: #ff3333;
-      box-shadow: 0 0 10px #ff3333;
-    }
-    .shift-knob {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #ff6666, #cc0000);
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.8);
-      transform: translate(-50%, -50%);
-      transition: top 0.12s ease, left 0.12s ease;
-      pointer-events: none;
-      z-index: 5;
-    }
-    .tacho-container {
-      margin-top: 14px;
-      text-align: center;
-      background: #181818;
-      border-radius: 50%;
-      width: 150px;
-      height: 150px;
-      margin-left: auto;
-      margin-right: auto;
-      position: relative;
-      border: 4px solid #333;
-      box-shadow: inset 0 4px 10px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.5);
-    }
-    .tacho-dial {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-    }
-    .tacho-needle {
-      position: absolute;
-      bottom: 50%;
-      left: 50%;
-      width: 4px;
-      height: 52px;
-      background: linear-gradient(to top, #fff, #ffdd44);
-      border-radius: 2px;
-      transform-origin: bottom center;
-      transform: translateX(-50%) rotate(-135deg);
-      transition: transform 0.05s linear;
-      box-shadow: 0 0 4px rgba(0,0,0,0.8);
-      z-index: 3;
-    }
-    .tacho-cap {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 14px;
-      height: 14px;
-      background: #222;
-      border: 2px solid #aaa;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 4;
-    }
-    .tacho-label {
-      position: absolute;
-      font-size: 11px;
+    #gear-box {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #888;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
       font-weight: bold;
-      color: #ddd;
+      background: #1a1a1a;
+      color: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    #gear-box.redline {
+      border-color: #ff2222;
+      box-shadow: 0 0 14px #ff2222, inset 0 0 8px rgba(255, 34, 34, 0.5);
+      color: #ff6666;
+    }
+    #speed-info {
+      text-align: right;
+      line-height: 1.4;
+    }
+    #speed-val {
+      font-size: 22px;
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+    }
+    #rpm-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    #rpm-bar {
+      width: 10%;
+      height: 100%;
+      background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+      transition: width 0.05s linear;
+    }
+    #h-gate {
+      position: relative;
+      width: 190px;
+      height: 96px;
+      background: #181818;
+      border: 1px solid #444;
+      border-radius: 6px;
+      margin: 0 auto 8px auto;
+    }
+    .gate-slot {
+      position: absolute;
+      width: 24px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 12px;
+      color: #aaa;
+      transform: translate(-50%, -50%);
+    }
+    .gate-slot.active-slot {
+      color: #00ffcc;
+      text-shadow: 0 0 6px #00ffcc;
+    }
+    .gate-line-h {
+      position: absolute;
+      top: 48px;
+      left: 20px;
+      width: 150px;
+      height: 4px;
+      background: #444;
+      transform: translateY(-50%);
+    }
+    .gate-line-v {
+      position: absolute;
+      top: 18px;
+      width: 4px;
+      height: 60px;
+      background: #444;
+      transform: translateX(-50%);
+    }
+    #shift-knob {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ff5555, #aa0000);
+      border: 2px solid #fff;
+      transform: translate(-50%, -50%);
+      transition: left 0.1s ease-out, top 0.1s ease-out;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+      z-index: 2;
+    }
+    #mt-help {
+      font-size: 11px;
+      color: #bbb;
+      text-align: center;
+      line-height: 1.4;
     }
   </style>
   <script type="importmap">
@@ -189,53 +168,39 @@
     <div>[2] ガンナー ⇄ 運転席 ⇄ 助手席</div>
     <div>[￥] フリカメ（WASD歩行・Spaceジャンプ・マウス操作）</div>
     <div>[Q/E] 銃座旋回（慣性付き）</div>
-    <div>[HKUJ] シフトレバー / [W] アクセル / [S] ブレーキ</div>
+    <div>[WASD] 車軸回転・操舵（射手・車長・操縦手カメラ時）</div>
   </div>
 
-  <div id="manualUI">
-    <div class="speed-display"><span id="carSpeed">0</span> km/h</div>
-    <div class="shift-plate">
-      <svg class="shift-svg" viewBox="0 0 180 130">
-        <line x1="22" y1="65" x2="158" y2="65" stroke="#888" stroke-width="4" stroke-linecap="round" />
-        <line x1="22" y1="65" x2="22" y2="92" stroke="#888" stroke-width="4" stroke-linecap="round" />
-        <line x1="56" y1="38" x2="56" y2="92" stroke="#888" stroke-width="4" stroke-linecap="round" />
-        <line x1="90" y1="38" x2="90" y2="92" stroke="#888" stroke-width="4" stroke-linecap="round" />
-        <line x1="124" y1="38" x2="124" y2="92" stroke="#888" stroke-width="4" stroke-linecap="round" />
-        <line x1="158" y1="38" x2="158" y2="92" stroke="#888" stroke-width="4" stroke-linecap="round" />
-      </svg>
-
-      <div id="box1" class="gear-label" style="top: 20px; left: 56px;">1</div>
-      <div id="box3" class="gear-label" style="top: 20px; left: 90px;">3</div>
-      <div id="box5" class="gear-label" style="top: 20px; left: 124px;">5</div>
-      <div id="box7" class="gear-label" style="top: 20px; left: 158px;">7</div>
-
-      <div id="boxN" class="neutral-indicator active"></div>
-
-      <div id="boxR" class="gear-label" style="top: 110px; left: 22px;">R</div>
-      <div id="box2" class="gear-label" style="top: 110px; left: 56px;">2</div>
-      <div id="box4" class="gear-label" style="top: 110px; left: 90px;">4</div>
-      <div id="box6" class="gear-label" style="top: 110px; left: 124px;">6</div>
-      <div id="box8" class="gear-label" style="top: 110px; left: 158px;">8</div>
-
-      <div id="shiftKnob" class="shift-knob" style="top: 65px; left: 90px;"></div>
+  <div id="mt-ui">
+    <div id="mt-header">
+      <div id="gear-box">N</div>
+      <div id="speed-info">
+        <div><span id="speed-val">0</span> km/h</div>
+        <div style="font-size: 11px; color: #aaa;" id="engine-state">IDLING</div>
+      </div>
     </div>
-    <div class="tacho-container">
-      <svg class="tacho-dial" viewBox="0 0 150 150">
-        <!-- レッドゾーン (6〜8) -->
-        <path d="M 112 112 A 55 55 0 0 0 132 75 A 55 55 0 0 0 112 38" fill="none" stroke="#cc2222" stroke-width="6" stroke-linecap="round" />
-        <!-- 目盛りと数字 (0〜8) -->
-        <text x="32" y="112" class="tacho-label" text-anchor="middle">0</text>
-        <text x="22" y="78" class="tacho-label" text-anchor="middle">1</text>
-        <text x="38" y="45" class="tacho-label" text-anchor="middle">2</text>
-        <text x="75" y="28" class="tacho-label" text-anchor="middle">4</text>
-        <text x="112" y="45" class="tacho-label" text-anchor="middle">6</text>
-        <text x="128" y="78" class="tacho-label" text-anchor="middle">7</text>
-        <text x="118" y="112" class="tacho-label" text-anchor="middle">8</text>
-        <text x="75" y="122" class="tacho-label" text-anchor="middle" font-size="8" fill="#aaa">x1000r/min</text>
-      </svg>
-      <div id="tachoNeedle" class="tacho-needle"></div>
-      <div class="tacho-cap"></div>
+    <div id="rpm-bar-bg"><div id="rpm-bar"></div></div>
+    <div id="h-gate">
+      <div class="gate-line-h"></div>
+      <div class="gate-line-v" style="left: 20px;"></div>
+      <div class="gate-line-v" style="left: 57.5px;"></div>
+      <div class="gate-line-v" style="left: 95px;"></div>
+      <div class="gate-line-v" style="left: 132.5px;"></div>
+      <div class="gate-line-v" style="left: 170px;"></div>
+
+      <div class="gate-slot" data-gear="1" style="left: 20px; top: 14px;">1</div>
+      <div class="gate-slot" data-gear="2" style="left: 20px; top: 82px;">2</div>
+      <div class="gate-slot" data-gear="3" style="left: 57.5px; top: 14px;">3</div>
+      <div class="gate-slot" data-gear="4" style="left: 57.5px; top: 82px;">4</div>
+      <div class="gate-slot" data-gear="5" style="left: 95px; top: 14px;">5</div>
+      <div class="gate-slot" data-gear="6" style="left: 95px; top: 82px;">6</div>
+      <div class="gate-slot" data-gear="7" style="left: 132.5px; top: 14px;">7</div>
+      <div class="gate-slot" data-gear="8" style="left: 132.5px; top: 82px;">8</div>
+      <div class="gate-slot" data-gear="R" style="left: 170px; top: 82px;">R</div>
+
+      <div id="shift-knob" style="left: 57.5px; top: 48px;"></div>
     </div>
+    <div id="mt-help">シフト操作: [U]上 [J]下 [H]左 [K]右<br>[W]アクセル [S]ブレーキ</div>
   </div>
 
   <script type="module">
@@ -327,10 +292,13 @@
     const freeLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
     const camNameEl = document.getElementById('camName');
-    const manualUIEl = document.getElementById('manualUI');
-    const carSpeedEl = document.getElementById('carSpeed');
-    const shiftKnobEl = document.getElementById('shiftKnob');
-    const tachoNeedleEl = document.getElementById('tachoNeedle');
+    const mtUiEl = document.getElementById('mt-ui');
+    const gearBoxEl = document.getElementById('gear-box');
+    const speedValEl = document.getElementById('speed-val');
+    const engineStateEl = document.getElementById('engine-state');
+    const rpmBarEl = document.getElementById('rpm-bar');
+    const shiftKnobEl = document.getElementById('shift-knob');
+    const gateSlots = document.querySelectorAll('.gate-slot');
 
     const nodes = {};
     const initialRotations = {};
@@ -338,13 +306,78 @@
     let turretVelocity = 0;
     let steerAngle = 0;
 
-    let shiftCol = 2;
-    let shiftRow = 0;
-    let currentGear = 'N'; 
-    let carSpeed = 0; 
-    let engineRpm = 800;
-    let wheelRotationZ = 0;
-    let highestGearStarted = 1;
+    // マニュアルトランスミッション状態
+    // leverCol: 0=(1/2), 1=(3/4), 2=(5/6), 3=(7/8), 4=(R)
+    // leverRow: -1=上, 0=ニュートラル, 1=下
+    let leverCol = 1;
+    let leverRow = 0;
+    let currentGear = 'N'; // 'N', '1'..'8', 'R'
+    let vehicleSpeedKmh = 0; // 正=前進, 負=後退
+
+    const gearSpecs = {
+      '1': { minSpeed: 0,   maxSpeed: 15,  optimalMin: 0,  optimalMax: 13,  baseAccel: 14.0 },
+      '2': { minSpeed: 8,   maxSpeed: 28,  optimalMin: 10, optimalMax: 25,  baseAccel: 11.5 },
+      '3': { minSpeed: 18,  maxSpeed: 42,  optimalMin: 22, optimalMax: 38,  baseAccel: 9.5  },
+      '4': { minSpeed: 30,  maxSpeed: 58,  optimalMin: 35, optimalMax: 53,  baseAccel: 8.0  },
+      '5': { minSpeed: 44,  maxSpeed: 74,  optimalMin: 50, optimalMax: 68,  baseAccel: 6.8  },
+      '6': { minSpeed: 58,  maxSpeed: 90,  optimalMin: 64, optimalMax: 84,  baseAccel: 5.8  },
+      '7': { minSpeed: 72,  maxSpeed: 106, optimalMin: 80, optimalMax: 100, baseAccel: 5.0  },
+      '8': { minSpeed: 88,  maxSpeed: 125, optimalMin: 95, optimalMax: 118, baseAccel: 4.2  },
+      'R': { minSpeed: 0,   maxSpeed: 20,  optimalMin: 0,  optimalMax: 18,  baseAccel: 10.0 }
+    };
+
+    function resolveGearFromLever() {
+      if (leverRow === 0) return 'N';
+      if (leverCol === 0) return leverRow === -1 ? '1' : '2';
+      if (leverCol === 1) return leverRow === -1 ? '3' : '4';
+      if (leverCol === 2) return leverRow === -1 ? '5' : '6';
+      if (leverCol === 3) return leverRow === -1 ? '7' : '8';
+      if (leverCol === 4) return leverRow === 1 ? 'R' : 'N';
+      return 'N';
+    }
+
+    function updateShiftUI() {
+      const colX = [20, 57.5, 95, 132.5, 170];
+      const rowY = { '-1': 14, '0': 48, '1': 82 };
+      shiftKnobEl.style.left = colX[leverCol] + 'px';
+      shiftKnobEl.style.top = rowY[String(leverRow)] + 'px';
+
+      currentGear = resolveGearFromLever();
+      gearBoxEl.textContent = currentGear;
+
+      gateSlots.forEach((slot) => {
+        if (slot.dataset.gear === currentGear) {
+          slot.classList.add('active-slot');
+        } else {
+          slot.classList.remove('active-slot');
+        }
+      });
+    }
+
+    function moveShiftLever(dir) {
+      if (dir === 'U') {
+        if (leverRow === 1) {
+          leverRow = 0;
+        } else if (leverRow === 0 && leverCol !== 4) {
+          leverRow = -1;
+        }
+      } else if (dir === 'J') {
+        if (leverRow === -1) {
+          leverRow = 0;
+        } else if (leverRow === 0) {
+          leverRow = 1;
+        }
+      } else if (dir === 'H') {
+        if (leverRow === 0 && leverCol > 0) {
+          leverCol--;
+        }
+      } else if (dir === 'K') {
+        if (leverRow === 0 && leverCol < 4) {
+          leverCol++;
+        }
+      }
+      updateShiftUI();
+    }
 
     const raycaster = new THREE.Raycaster();
     raycaster.firstHitOnly = true;
@@ -367,66 +400,6 @@
 
     function getNode(name) {
       return nodes[name] || null;
-    }
-
-    function updateGearFromPosition() {
-      if (shiftRow === 0) {
-        currentGear = 'N';
-      } else if (shiftRow === -1) {
-        if (shiftCol === 1) currentGear = '1';
-        else if (shiftCol === 2) currentGear = '3';
-        else if (shiftCol === 3) currentGear = '5';
-        else if (shiftCol === 4) currentGear = '7';
-      } else if (shiftRow === 1) {
-        if (shiftCol === 0) currentGear = 'R';
-        else if (shiftCol === 1) currentGear = '2';
-        else if (shiftCol === 2) currentGear = '4';
-        else if (shiftCol === 3) currentGear = '6';
-        else if (shiftCol === 4) currentGear = '8';
-      }
-      if (currentGear >= '1' && currentGear <= '8') {
-        const gNum = parseInt(currentGear);
-        if (gNum > highestGearStarted) {
-          highestGearStarted = gNum;
-        }
-      } else if (currentGear === 'N' || currentGear === 'R') {
-        highestGearStarted = 1;
-      }
-    }
-
-    function updateManualUI() {
-      const isControlCamera =
-        activeCamera === cameras['射手'] ||
-        activeCamera === cameras['車長'] ||
-        activeCamera === cameras['操縦手'];
-
-      if (isControlCamera) {
-        manualUIEl.style.display = 'block';
-        carSpeedEl.textContent = Math.round(carSpeed);
-
-        // タコメーター針の角度計算 (0 RPM = -135deg, 8000 RPM = +135degあたり)
-        let angleDeg = -135 + (engineRpm / 8000) * 270;
-        tachoNeedleEl.style.transform = `translateX(-50%) rotate(${angleDeg}deg)`;
-
-        const colX = [22, 56, 90, 124, 158];
-        const rowY = shiftRow === -1 ? 38 : (shiftRow === 1 ? 92 : 65);
-        shiftKnobEl.style.left = colX[shiftCol] + 'px';
-        shiftKnobEl.style.top = rowY + 'px';
-
-        const boxes = ['R', 'N', '1', '2', '3', '4', '5', '6', '7', '8'];
-        boxes.forEach((b) => {
-          const el = document.getElementById('box' + b);
-          if (el) {
-            if (b === currentGear) {
-              el.classList.add('active');
-            } else {
-              el.classList.remove('active');
-            }
-          }
-        });
-      } else {
-        manualUIEl.style.display = 'none';
-      }
     }
 
     function setupPhysics() {
@@ -673,66 +646,120 @@
         activeCamera === cameras['車長'] ||
         activeCamera === cameras['操縦手'];
 
+      mtUiEl.style.display = isControlCamera ? 'block' : 'none';
+
       if (!isControlCamera) return;
 
       const allAxles = ['右1軸', '右2軸', '右3軸', '右4軸', '左1軸', '左2軸', '左3軸', '左4軸', '左４軸'];
       const rightSteerAxles = ['右1軸', '右2軸'];
       const leftSteerAxles = ['左1軸', '左2軸'];
 
-      let throttle = pressedKeys.has('KeyW');
-      let brake = pressedKeys.has('KeyS');
+      const isThrottle = pressedKeys.has('KeyW');
+      const isBrake = pressedKeys.has('KeyS');
 
-      if (throttle) {
-        if (currentGear === 'R') {
-          carSpeed = Math.max(-30, carSpeed - 15 * dt);
-          engineRpm = Math.min(7500, engineRpm + 3000 * dt);
-        } else if (currentGear >= '1' && currentGear <= '8') {
-          const gNum = parseInt(currentGear);
-          let penalty = 1.0;
-          if (gNum > highestGearStarted) {
-            penalty = Math.max(0.1, 1.0 - (gNum - highestGearStarted) * 0.25);
-          }
-          let efficiency = Math.pow(gNum / 8, 1.5) * penalty;
-          if (gNum === 8) efficiency = 0.2 * penalty;
-          else if (gNum === 1) efficiency = 0.9;
-
-          let targetMax = gNum * 15;
-          carSpeed += (targetMax - carSpeed) * dt * 2.0 * efficiency + 5 * dt * efficiency;
-          carSpeed = Math.min(120, carSpeed);
-
-          let targetRpm = 800 + (carSpeed / 120) * 6700 + (gNum * 200);
-          if (targetRpm >= 7500) {
-            engineRpm = 7000 + Math.sin(performance.now() * 0.02) * 500;
-          } else {
-            engineRpm += (targetRpm - engineRpm) * dt * 5.0;
-          }
-        } else {
-          carSpeed = Math.max(0, carSpeed - 5 * dt);
-          engineRpm = Math.min(6000, engineRpm + 4000 * dt);
+      // ブレーキ: 1km/hずつ減速
+      if (isBrake) {
+        if (vehicleSpeedKmh > 0) {
+          vehicleSpeedKmh = Math.max(0, vehicleSpeedKmh - 1.0);
+        } else if (vehicleSpeedKmh < 0) {
+          vehicleSpeedKmh = Math.min(0, vehicleSpeedKmh + 1.0);
         }
-      } else if (brake) {
-        if (carSpeed > 0) {
-          carSpeed = Math.max(0, carSpeed - 5 * dt * 3.0);
-        } else if (carSpeed < 0) {
-          carSpeed = Math.min(0, carSpeed + 5 * dt * 3.0);
-        }
-        engineRpm = Math.max(800, engineRpm - 3000 * dt);
-      } else {
-        if (carSpeed > 0) carSpeed = Math.max(0, carSpeed - 3 * dt);
-        else if (carSpeed < 0) carSpeed = Math.min(0, carSpeed + 3 * dt);
-        engineRpm = Math.max(800, engineRpm - 2000 * dt);
       }
 
-      wheelRotationZ += carSpeed * dt * 0.5;
+      // アクセル＆ギア別加速ロジック
+      let rpmRatio = 0.12; // アイドリング時
+      let isRedline = false;
 
-      if (carSpeed !== 0) {
+      if (currentGear === 'N') {
+        if (isThrottle) {
+          rpmRatio = 0.85;
+          engineStateEl.textContent = 'NEUTRAL REV';
+        } else {
+          rpmRatio = 0.12;
+          engineStateEl.textContent = 'IDLING';
+        }
+        // 自然減速
+        if (!isBrake) {
+          const drag = 3.5 * dt;
+          if (vehicleSpeedKmh > 0) vehicleSpeedKmh = Math.max(0, vehicleSpeedKmh - drag);
+          else if (vehicleSpeedKmh < 0) vehicleSpeedKmh = Math.min(0, vehicleSpeedKmh + drag);
+        }
+      } else if (currentGear === 'R') {
+        const spec = gearSpecs['R'];
+        const absSpd = Math.abs(vehicleSpeedKmh);
+        rpmRatio = Math.min(1.0, 0.15 + (absSpd / spec.maxSpeed) * 0.85);
+        if (absSpd >= spec.optimalMax) {
+          isRedline = true;
+        }
+        if (isThrottle && !isBrake) {
+          if (vehicleSpeedKmh > 0) {
+            vehicleSpeedKmh = Math.max(0, vehicleSpeedKmh - 15.0 * dt);
+          } else if (absSpd < spec.maxSpeed) {
+            const eff = absSpd >= spec.optimalMax ? 0.15 : 1.0;
+            vehicleSpeedKmh = Math.max(-spec.maxSpeed, vehicleSpeedKmh - spec.baseAccel * eff * dt);
+          }
+          engineStateEl.textContent = 'REVERSE';
+        } else if (!isBrake) {
+          engineStateEl.textContent = absSpd > 0.1 ? 'COASTING' : 'IDLING';
+          if (vehicleSpeedKmh < 0) vehicleSpeedKmh = Math.min(0, vehicleSpeedKmh + 3.0 * dt);
+        } else {
+          engineStateEl.textContent = 'BRAKING';
+        }
+      } else {
+        // 前進ギア 1〜8
+        const spec = gearSpecs[currentGear];
+        const spd = Math.max(0, vehicleSpeedKmh);
+        rpmRatio = Math.min(1.0, Math.max(0.12, (spd - spec.minSpeed * 0.5) / (spec.maxSpeed - spec.minSpeed * 0.5)));
+
+        if (spd >= spec.optimalMax) {
+          isRedline = true;
+        }
+
+        if (isThrottle && !isBrake) {
+          if (vehicleSpeedKmh < 0) {
+            vehicleSpeedKmh = Math.min(0, vehicleSpeedKmh + 15.0 * dt);
+          } else if (spd < spec.maxSpeed) {
+            // 段階的に加速すると効率よく加速、低速からいきなり高いギアはトルク不足でほぼ加速しない
+            let torqueEfficiency = 1.0;
+            if (spd < spec.optimalMin) {
+              const deficit = spec.optimalMin - spd;
+              const gearNum = parseInt(currentGear, 10);
+              // 高ギアほど低速域での加速効率が極端に落ちる
+              torqueEfficiency = Math.max(0.04, Math.exp(-deficit * (0.045 + gearNum * 0.015)));
+            } else if (spd >= spec.optimalMax) {
+              // レブリミット付近で頭打ち（自動シフトアップなし）
+              torqueEfficiency = Math.max(0.02, 1.0 - (spd - spec.optimalMax) / (spec.maxSpeed - spec.optimalMax));
+            }
+            vehicleSpeedKmh = Math.min(spec.maxSpeed, vehicleSpeedKmh + spec.baseAccel * torqueEfficiency * dt);
+          }
+          engineStateEl.textContent = isRedline ? 'SHIFT UP!' : 'ACCELERATING';
+        } else if (!isBrake) {
+          engineStateEl.textContent = spd > 0.1 ? 'COASTING' : 'IDLING';
+          if (vehicleSpeedKmh > 0) {
+            vehicleSpeedKmh = Math.max(0, vehicleSpeedKmh - 2.5 * dt);
+          }
+        } else {
+          engineStateEl.textContent = 'BRAKING';
+        }
+      }
+
+      // ギア枠の赤点灯制御
+      if (isRedline) {
+        gearBoxEl.classList.add('redline');
+      } else {
+        gearBoxEl.classList.remove('redline');
+      }
+
+      speedValEl.textContent = Math.round(Math.abs(vehicleSpeedKmh));
+      rpmBarEl.style.width = Math.round(rpmRatio * 100) + '%';
+
+      // 車軸の回転（前進: Wで+Z方向、バック(R): Wで-Z方向）
+      if (Math.abs(vehicleSpeedKmh) > 0.01) {
+        const angularVel = vehicleSpeedKmh * 0.25;
         for (let i = 0; i < allAxles.length; i++) {
           const bone = getNode(allAxles[i]);
           if (bone) {
-            const initZ = initialRotations[allAxles[i]] ? initialRotations[allAxles[i]].z : 0;
-            // バックの時の回転方向とアクセルの時の回転方向の符号が逆
-            const sign = currentGear === 'R' ? -1 : 1;
-            bone.rotation.z = initZ + sign * wheelRotationZ;
+            bone.rotation.z += angularVel * dt;
           }
         }
       }
@@ -770,8 +797,6 @@
           bone.rotation.y = initY - steerAngle;
         }
       }
-
-      updateManualUI();
     }
 
     function switchCamera(name) {
@@ -787,7 +812,6 @@
       controls.enabled = false;
       isFreeLook = true;
       freeLookEuler.setFromQuaternion(target.quaternion, 'YXZ');
-      updateManualUI();
     }
 
     function loadGLB(file) {
@@ -807,12 +831,10 @@
         }
         turretVelocity = 0;
         steerAngle = 0;
-        carSpeed = 0;
-        engineRpm = 800;
-        shiftCol = 2;
-        shiftRow = 0;
-        currentGear = 'N';
-        highestGearStarted = 1;
+        leverCol = 1;
+        leverRow = 0;
+        vehicleSpeedKmh = 0;
+        updateShiftUI();
 
         loadedModel = gltf.scene;
         scene.add(loadedModel);
@@ -870,7 +892,6 @@
           camNameEl.textContent = 'デフォルト';
         }
 
-        updateManualUI();
         URL.revokeObjectURL(url);
       });
     }
@@ -915,38 +936,18 @@
         activeCamera === cameras['操縦手'];
 
       if (isControlCamera) {
-        if (e.code === 'KeyH') {
-          if (shiftRow === 0 && shiftCol > 0) {
-            shiftCol--;
-            updateGearFromPosition();
-            updateManualUI();
-          }
-        } else if (e.code === 'KeyK') {
-          if (shiftRow === 0 && shiftCol < 4) {
-            shiftCol++;
-            updateGearFromPosition();
-            updateManualUI();
-          }
-        } else if (e.code === 'KeyU') {
-          if (shiftRow === 1) {
-            shiftRow = 0;
-            updateGearFromPosition();
-            updateManualUI();
-          } else if (shiftRow === 0 && shiftCol >= 1 && shiftCol <= 4) {
-            shiftRow = -1;
-            updateGearFromPosition();
-            updateManualUI();
-          }
+        if (e.code === 'KeyU') {
+          moveShiftLever('U');
+          return;
         } else if (e.code === 'KeyJ') {
-          if (shiftRow === -1) {
-            shiftRow = 0;
-            updateGearFromPosition();
-            updateManualUI();
-          } else if (shiftRow === 0 && shiftCol >= 0 && shiftCol <= 4) {
-            shiftRow = 1;
-            updateGearFromPosition();
-            updateManualUI();
-          }
+          moveShiftLever('J');
+          return;
+        } else if (e.code === 'KeyH') {
+          moveShiftLever('H');
+          return;
+        } else if (e.code === 'KeyK') {
+          moveShiftLever('K');
+          return;
         }
       }
 
@@ -988,6 +989,7 @@
     });
 
     const clock = new THREE.Clock();
+    updateShiftUI();
 
     function animate() {
       requestAnimationFrame(animate);
